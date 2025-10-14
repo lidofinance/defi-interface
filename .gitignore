@@ -12,3 +12,7 @@ docs/
 
 # Dotenv file
 .env
+
+AGENTS.md
+CLAUDE.md
+todo.md
