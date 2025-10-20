@@ -9,13 +9,16 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {MorphoVault} from "src/vaults/MorphoVault.sol";
 import {MockMetaMorpho} from "test/mocks/MockMetaMorpho.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
+import {RewardDistributor} from "src/core/RewardDistributor.sol";
 
 contract RewardDistributionIntegrationTest is Test {
     MorphoVault public vault;
     MockMetaMorpho public morpho;
     MockERC20 public usdc;
+    RewardDistributor public rewardDistributor;
 
-    address public treasury = makeAddr("treasury");
+    address public recipient1 = makeAddr("recipient1");
+    address public recipient2 = makeAddr("recipient2");
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
     address public charlie = makeAddr("charlie");
@@ -34,10 +37,21 @@ contract RewardDistributionIntegrationTest is Test {
             OFFSET
         );
 
+        // Setup RewardDistributor with 2 recipients: 5% and 95%
+        address[] memory recipients = new address[](2);
+        recipients[0] = recipient1;
+        recipients[1] = recipient2;
+
+        uint256[] memory basisPoints = new uint256[](2);
+        basisPoints[0] = 500; // 5%
+        basisPoints[1] = 9500; // 95%
+
+        rewardDistributor = new RewardDistributor(recipients, basisPoints);
+
         vault = new MorphoVault(
             address(usdc),
             address(morpho),
-            treasury,
+            address(rewardDistributor),
             REWARD_FEE,
             OFFSET,
             "Morpho USDC Vault",
@@ -84,7 +98,9 @@ contract RewardDistributionIntegrationTest is Test {
             uint256 aliceBalanceBefore = vault.convertToAssets(
                 aliceSharesBefore
             );
-            uint256 treasurySharesBefore = vault.balanceOf(treasury);
+            uint256 treasurySharesBefore = vault.balanceOf(
+                address(rewardDistributor)
+            );
 
             uint256 deposit = 10_000e6;
             uint256 expectedSharesDiff = vault.convertToShares(deposit);
@@ -94,7 +110,9 @@ contract RewardDistributionIntegrationTest is Test {
 
             vaultBalanceAfter = vault.totalAssets();
             uint256 aliceSharesAfter = vault.balanceOf(address(alice));
-            uint256 treasurySharesAfter = vault.balanceOf(treasury);
+            uint256 treasurySharesAfter = vault.balanceOf(
+                address(rewardDistributor)
+            );
 
             assertEq(aliceSharesBefore + expectedSharesDiff, aliceSharesAfter);
             assertEq(vaultBalanceBefore + deposit, vaultBalanceAfter);
@@ -112,13 +130,17 @@ contract RewardDistributionIntegrationTest is Test {
 
             uint256 aliceShares = vault.balanceOf(address(alice));
             uint256 aliceBalanceBefore = vault.convertToAssets(aliceShares);
-            uint256 treasurySharesBefore = vault.balanceOf(treasury);
+            uint256 treasurySharesBefore = vault.balanceOf(
+                address(rewardDistributor)
+            );
             uint256 rewardsAmount = (vaultBalanceBefore * 10) / 10000;
 
             _addRewardsByAmount(rewardsAmount);
 
             uint256 aliceBalanceAfter = vault.convertToAssets(aliceShares);
-            uint256 treasurySharesAfter = vault.balanceOf(treasury);
+            uint256 treasurySharesAfter = vault.balanceOf(
+                address(rewardDistributor)
+            );
 
             assertEq(aliceShares, vault.balanceOf(address(alice)));
             assertApproxEqAbs(
@@ -135,7 +157,9 @@ contract RewardDistributionIntegrationTest is Test {
             vaultBalanceBefore = vault.totalAssets();
             uint256 bobSharesBefore = vault.balanceOf(address(bob));
             uint256 bobBalanceBefore = vault.convertToAssets(bobSharesBefore);
-            uint256 treasurySharesBefore = vault.balanceOf(treasury);
+            uint256 treasurySharesBefore = vault.balanceOf(
+                address(rewardDistributor)
+            );
             uint256 totalSupplyBefore = vault.totalSupply();
 
             uint256 lastAssets = vault.lastTotalAssets();
@@ -150,7 +174,9 @@ contract RewardDistributionIntegrationTest is Test {
             uint256 actualShares = vault.deposit(deposit, address(bob));
 
             uint256 bobSharesAfter = vault.balanceOf(address(bob));
-            uint256 treasurySharesAfter = vault.balanceOf(treasury);
+            uint256 treasurySharesAfter = vault.balanceOf(
+                address(rewardDistributor)
+            );
             vaultBalanceAfter = vault.totalAssets();
 
             assertEq(bobSharesBefore + actualShares, bobSharesAfter);
@@ -174,14 +200,18 @@ contract RewardDistributionIntegrationTest is Test {
             uint256 bobShares = vault.balanceOf(address(bob));
             uint256 aliceBalanceBefore = vault.convertToAssets(aliceShares);
             uint256 bobBalanceBefore = vault.convertToAssets(bobShares);
-            uint256 treasurySharesBefore = vault.balanceOf(treasury);
+            uint256 treasurySharesBefore = vault.balanceOf(
+                address(rewardDistributor)
+            );
             uint256 rewardsAmount = (vaultBalanceBefore * 10) / 10000;
 
             _addRewardsByAmount(rewardsAmount);
 
             uint256 aliceBalanceAfter = vault.convertToAssets(aliceShares);
             uint256 bobBalanceAfter = vault.convertToAssets(bobShares);
-            uint256 treasurySharesAfter = vault.balanceOf(treasury);
+            uint256 treasurySharesAfter = vault.balanceOf(
+                address(rewardDistributor)
+            );
 
             assertEq(aliceShares, vault.balanceOf(address(alice)));
             assertEq(bobShares, vault.balanceOf(address(bob)));
@@ -211,7 +241,9 @@ contract RewardDistributionIntegrationTest is Test {
             uint256 charlieBalanceBefore = vault.convertToAssets(
                 charlieSharesBefore
             );
-            uint256 treasurySharesBefore = vault.balanceOf(treasury);
+            uint256 treasurySharesBefore = vault.balanceOf(
+                address(rewardDistributor)
+            );
             uint256 totalSupplyBefore = vault.totalSupply();
 
             uint256 lastAssets = vault.lastTotalAssets();
@@ -226,7 +258,9 @@ contract RewardDistributionIntegrationTest is Test {
             uint256 actualShares = vault.deposit(deposit, address(charlie));
 
             uint256 charlieSharesAfter = vault.balanceOf(address(charlie));
-            uint256 treasurySharesAfter = vault.balanceOf(treasury);
+            uint256 treasurySharesAfter = vault.balanceOf(
+                address(rewardDistributor)
+            );
             vaultBalanceAfter = vault.totalAssets();
 
             assertEq(charlieSharesBefore + actualShares, charlieSharesAfter);
@@ -252,7 +286,9 @@ contract RewardDistributionIntegrationTest is Test {
             uint256 aliceBalanceBefore = vault.convertToAssets(aliceShares);
             uint256 bobBalanceBefore = vault.convertToAssets(bobShares);
             uint256 charlieBalanceBefore = vault.convertToAssets(charlieShares);
-            uint256 treasurySharesBefore = vault.balanceOf(treasury);
+            uint256 treasurySharesBefore = vault.balanceOf(
+                address(rewardDistributor)
+            );
             uint256 rewardsAmount = (vaultBalanceBefore * 20) / 10000;
 
             _addRewardsByAmount(rewardsAmount);
@@ -260,7 +296,9 @@ contract RewardDistributionIntegrationTest is Test {
             uint256 aliceBalanceAfter = vault.convertToAssets(aliceShares);
             uint256 bobBalanceAfter = vault.convertToAssets(bobShares);
             uint256 charlieBalanceAfter = vault.convertToAssets(charlieShares);
-            uint256 treasurySharesAfter = vault.balanceOf(treasury);
+            uint256 treasurySharesAfter = vault.balanceOf(
+                address(rewardDistributor)
+            );
 
             assertEq(aliceShares, vault.balanceOf(address(alice)));
             assertEq(bobShares, vault.balanceOf(address(bob)));
@@ -294,7 +332,9 @@ contract RewardDistributionIntegrationTest is Test {
         // Alice withdraws all
         {
             uint256 aliceShares = vault.balanceOf(address(alice));
-            uint256 treasurySharesBefore = vault.balanceOf(treasury);
+            uint256 treasurySharesBefore = vault.balanceOf(
+                address(rewardDistributor)
+            );
             uint256 totalSupplyBefore = vault.totalSupply();
             uint256 totalAssetsBefore = vault.totalAssets();
 
@@ -318,7 +358,9 @@ contract RewardDistributionIntegrationTest is Test {
             );
 
             uint256 aliceUsdcAfter = usdc.balanceOf(address(alice));
-            uint256 treasurySharesAfter = vault.balanceOf(treasury);
+            uint256 treasurySharesAfter = vault.balanceOf(
+                address(rewardDistributor)
+            );
 
             assertEq(vault.balanceOf(address(alice)), 0);
             assertEq(aliceUsdcAfter - aliceUsdcBefore, aliceActualAssets);
@@ -331,7 +373,9 @@ contract RewardDistributionIntegrationTest is Test {
         // Bob withdraws all
         {
             uint256 bobShares = vault.balanceOf(address(bob));
-            uint256 treasurySharesBefore = vault.balanceOf(treasury);
+            uint256 treasurySharesBefore = vault.balanceOf(
+                address(rewardDistributor)
+            );
             uint256 bobUsdcBefore = usdc.balanceOf(address(bob));
 
             vm.prank(bob);
@@ -342,7 +386,9 @@ contract RewardDistributionIntegrationTest is Test {
             );
 
             uint256 bobUsdcAfter = usdc.balanceOf(address(bob));
-            uint256 treasurySharesAfter = vault.balanceOf(treasury);
+            uint256 treasurySharesAfter = vault.balanceOf(
+                address(rewardDistributor)
+            );
 
             assertEq(vault.balanceOf(address(bob)), 0);
             assertEq(bobUsdcAfter - bobUsdcBefore, bobActualAssets);
@@ -353,7 +399,9 @@ contract RewardDistributionIntegrationTest is Test {
         // Charlie withdraws all
         {
             uint256 charlieShares = vault.balanceOf(address(charlie));
-            uint256 treasurySharesBefore = vault.balanceOf(treasury);
+            uint256 treasurySharesBefore = vault.balanceOf(
+                address(rewardDistributor)
+            );
             uint256 charlieUsdcBefore = usdc.balanceOf(address(charlie));
 
             vm.prank(charlie);
@@ -364,7 +412,9 @@ contract RewardDistributionIntegrationTest is Test {
             );
 
             uint256 charlieUsdcAfter = usdc.balanceOf(address(charlie));
-            uint256 treasurySharesAfter = vault.balanceOf(treasury);
+            uint256 treasurySharesAfter = vault.balanceOf(
+                address(rewardDistributor)
+            );
 
             assertEq(vault.balanceOf(address(charlie)), 0);
             assertEq(charlieUsdcAfter - charlieUsdcBefore, charlieActualAssets);
@@ -374,6 +424,47 @@ contract RewardDistributionIntegrationTest is Test {
             assertEq(vault.totalSupply(), treasurySharesAfter);
             uint256 treasuryAssets = vault.convertToAssets(treasurySharesAfter);
             assertApproxEqAbs(vault.totalAssets(), treasuryAssets, 2);
+        }
+
+        // Distribute rewards from RewardDistributor
+        {
+            uint256 distributorShares = vault.balanceOf(
+                address(rewardDistributor)
+            );
+
+            vm.prank(address(rewardDistributor));
+            uint256 distributorAssets = vault.redeem(
+                distributorShares,
+                address(rewardDistributor),
+                address(rewardDistributor)
+            );
+
+            assertEq(vault.balanceOf(address(rewardDistributor)), 0);
+            assertEq(
+                usdc.balanceOf(address(rewardDistributor)),
+                distributorAssets
+            );
+
+            uint256 recipient1BalanceBefore = usdc.balanceOf(recipient1);
+            uint256 recipient2BalanceBefore = usdc.balanceOf(recipient2);
+
+            assertEq(recipient1BalanceBefore, 0);
+            assertEq(recipient2BalanceBefore, 0);
+
+            rewardDistributor.distribute(address(usdc));
+
+            uint256 recipient1BalanceAfter = usdc.balanceOf(recipient1);
+            uint256 recipient2BalanceAfter = usdc.balanceOf(recipient2);
+
+            uint256 expectedRecipient1Amount = (distributorAssets * 500) /
+                10000;
+            assertEq(recipient1BalanceAfter, expectedRecipient1Amount);
+
+            uint256 expectedRecipient2Amount = (distributorAssets * 9500) /
+                10000;
+            assertEq(recipient2BalanceAfter, expectedRecipient2Amount);
+
+            assertApproxEqAbs(usdc.balanceOf(address(rewardDistributor)), 0, 1);
         }
     }
 }
