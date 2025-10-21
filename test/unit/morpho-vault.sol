@@ -6,13 +6,13 @@ import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.so
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-import {BaseVault} from "src/core/BaseVault.sol";
-import {MorphoVault} from "src/vaults/MorphoVault.sol";
+import {Vault} from "src/Vault.sol";
+import {Morpho} from "src/adapters/Morpho.sol";
 import {MockMetaMorpho} from "test/mocks/MockMetaMorpho.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
 
-contract MorphoVaultUnitTest is Test {
-    MorphoVault public vault;
+contract MorphoConnectorUnitTest is Test {
+    Morpho public vault;
     MockMetaMorpho public morpho;
     MockERC20 public usdc;
 
@@ -48,7 +48,7 @@ contract MorphoVaultUnitTest is Test {
             OFFSET
         );
 
-        vault = new MorphoVault(
+        vault = new Morpho(
             address(usdc),
             address(morpho),
             treasury,
@@ -169,13 +169,13 @@ contract MorphoVaultUnitTest is Test {
     }
 
     function test_Deposit_RevertIf_ZeroAmount() public {
-        vm.expectRevert(BaseVault.ZeroAmount.selector);
+        vm.expectRevert(Vault.ZeroAmount.selector);
         vm.prank(alice);
         vault.deposit(0, alice);
     }
 
     function test_Deposit_RevertIf_ZeroReceiver() public {
-        vm.expectRevert(BaseVault.ZeroAddress.selector);
+        vm.expectRevert(Vault.ZeroAddress.selector);
         vm.prank(alice);
         vault.deposit(10_000e6, address(0));
     }
@@ -191,7 +191,7 @@ contract MorphoVaultUnitTest is Test {
     function test_FirstDeposit_RevertIf_TooSmall() public {
         vm.expectRevert(
             abi.encodeWithSelector(
-                BaseVault.FirstDepositTooSmall.selector,
+                Vault.FirstDepositTooSmall.selector,
                 1000,
                 999
             )
@@ -299,7 +299,7 @@ contract MorphoVaultUnitTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                BaseVault.InsufficientShares.selector,
+                Vault.InsufficientShares.selector,
                 sharesRequested,
                 shares
             )
@@ -316,7 +316,7 @@ contract MorphoVaultUnitTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                BaseVault.InsufficientLiquidity.selector,
+                Vault.InsufficientLiquidity.selector,
                 10_000e6,
                 5_000e6
             )
@@ -440,47 +440,13 @@ contract MorphoVaultUnitTest is Test {
         assertEq(vaultTotalAssets, morphoAssets);
     }
 
-    function test_GetMorphoPosition() public {
-        uint256 depositAmount = 50_000e6;
-        vm.prank(alice);
-        vault.deposit(depositAmount, alice);
-
-        (uint256 shares, uint256 assets, ) = vault.getMorphoPosition();
-
-        // MockMetaMorpho теперь также использует OFFSET, поэтому первый депозит дает:
-        // morphoShares = depositAmount * 10^OFFSET
-        uint256 expectedMorphoShares = depositAmount * 10 ** OFFSET;
-
-        assertEq(
-            shares,
-            expectedMorphoShares,
-            "Morpho shares should include offset multiplication"
-        );
-        assertApproxEqAbs(
-            assets,
-            depositAmount,
-            1,
-            "Morpho assets should equal deposited amount"
-        );
-    }
-
-    function test_MaxWithdrawable() public {
+    function test_MaxWithdraw() public {
         vm.prank(alice);
         vault.deposit(100_000e6, alice);
 
-        uint256 maxWithdraw = vault.maxWithdrawable();
+        uint256 maxWithdraw = vault.maxWithdraw(alice);
 
         assertApproxEqAbs(maxWithdraw, 100_000e6, 1);
-    }
-
-    function test_CheckMorphoHealth_Healthy() public {
-        vm.prank(alice);
-        vault.deposit(100_000e6, alice);
-
-        (bool isHealthy, string memory reason) = vault.checkMorphoHealth();
-
-        assertTrue(isHealthy);
-        assertEq(reason, "");
     }
 
     function test_GetVaultConfig() public view {
@@ -497,20 +463,6 @@ contract MorphoVaultUnitTest is Test {
         assertEq(minFirstDeposit_, 1000);
         assertEq(offset_, OFFSET);
         assertEq(isPaused_, false);
-    }
-
-    function test_GetAddresses() public view {
-        (
-            address asset,
-            address morphoVault,
-            address treasury_,
-            address thisVault
-        ) = vault.getAddresses();
-
-        assertEq(asset, address(usdc));
-        assertEq(morphoVault, address(morpho));
-        assertEq(treasury_, treasury);
-        assertEq(thisVault, address(vault));
     }
 
     function test_DepositWithdraw_RoundingDoesNotCauseLoss() public {

@@ -7,23 +7,23 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IMetaMorpho} from "@morpho/interfaces/IMetaMorpho.sol";
 
-import {BaseVault} from "src/core/BaseVault.sol";
-import {MorphoVault} from "src/vaults/MorphoVault.sol";
+import {Vault} from "src/Vault.sol";
+import {Morpho} from "src/adapters/Morpho.sol";
 
 import {USDC, STEAKHOUSE_USDC_VAULT} from "src/utils/Constants.sol";
 
-contract MorphoVaultIntegrationTest is Test {
+contract MorphoConnectorIntegrationTest is Test {
     address public treasury = makeAddr("treasury");
     address public usdcHolder = 0xaD354CfBAa4A8572DD6Df021514a3931A8329Ef5;
 
-    MorphoVault public vault;
+    Morpho public vault;
     IMetaMorpho public morphoVault;
 
     function setUp() public {
         string memory rpcUrl = vm.envString("MAINNET_RPC_URL");
         vm.createSelectFork(rpcUrl);
 
-        vault = new MorphoVault(
+        vault = new Morpho(
             USDC,
             STEAKHOUSE_USDC_VAULT,
             treasury,

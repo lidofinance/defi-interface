@@ -6,17 +6,18 @@ import "forge-std/console.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {MorphoVault} from "src/vaults/MorphoVault.sol";
+import {Morpho} from "src/adapters/Morpho.sol";
 import {MockMetaMorpho} from "test/mocks/MockMetaMorpho.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
-import {RewardDistributor} from "src/core/RewardDistributor.sol";
+import {RewardDistributor} from "src/RewardDistributor.sol";
 
 contract RewardDistributionIntegrationTest is Test {
-    MorphoVault public vault;
+    Morpho public vault;
     MockMetaMorpho public morpho;
     MockERC20 public usdc;
     RewardDistributor public rewardDistributor;
 
+    address public manager = makeAddr("manager");
     address public recipient1 = makeAddr("recipient1");
     address public recipient2 = makeAddr("recipient2");
     address public alice = makeAddr("alice");
@@ -46,9 +47,13 @@ contract RewardDistributionIntegrationTest is Test {
         basisPoints[0] = 500; // 5%
         basisPoints[1] = 9500; // 95%
 
-        rewardDistributor = new RewardDistributor(recipients, basisPoints);
+        rewardDistributor = new RewardDistributor(
+            manager,
+            recipients,
+            basisPoints
+        );
 
-        vault = new MorphoVault(
+        vault = new Morpho(
             address(usdc),
             address(morpho),
             address(rewardDistributor),
@@ -428,7 +433,8 @@ contract RewardDistributionIntegrationTest is Test {
 
         // Distribute rewards from RewardDistributor
         {
-            uint256 distributorAssets = rewardDistributor.redeemFromVault(
+            vm.prank(manager);
+            uint256 distributorAssets = rewardDistributor.redeem(
                 address(vault)
             );
 
@@ -444,6 +450,7 @@ contract RewardDistributionIntegrationTest is Test {
             assertEq(recipient1BalanceBefore, 0);
             assertEq(recipient2BalanceBefore, 0);
 
+            vm.prank(manager);
             rewardDistributor.distribute(address(usdc));
 
             uint256 recipient1BalanceAfter = usdc.balanceOf(recipient1);

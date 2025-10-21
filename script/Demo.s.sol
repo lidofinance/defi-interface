@@ -4,14 +4,14 @@ pragma solidity 0.8.30;
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 
-import {MorphoVault} from "src/vaults/MorphoVault.sol";
-import {RewardDistributor} from "src/core/RewardDistributor.sol";
+import {Morpho} from "src/adapters/Morpho.sol";
+import {RewardDistributor} from "src/RewardDistributor.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
 import {MockMetaMorpho} from "test/mocks/MockMetaMorpho.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract DemoDeploy is Script {
-    address constant ADMIN = 0x0000000000000000000000000000000000000000;
+    address constant ADMIN = 0x583FcCB743E846b639796bb56dBfE705Cbb65f31;
 
     address constant RECIPIENT_1 = 0x1111111111111111111111111111111111111111;
     address constant RECIPIENT_2 = 0x2222222222222222222222222222222222222222;
@@ -24,7 +24,7 @@ contract DemoDeploy is Script {
     MockERC20 public token;
     MockMetaMorpho public morphoVault;
     RewardDistributor public rewardDistributor;
-    MorphoVault public vault;
+    Morpho public vault;
 
     function setUp() public {}
 
@@ -62,7 +62,11 @@ contract DemoDeploy is Script {
         basisPoints[0] = RECIPIENT_1_BPS;
         basisPoints[1] = RECIPIENT_2_BPS;
 
-        rewardDistributor = new RewardDistributor(recipients, basisPoints);
+        rewardDistributor = new RewardDistributor(
+            ADMIN,
+            recipients,
+            basisPoints
+        );
         console.log(
             "   RewardDistributor deployed at:",
             address(rewardDistributor)
@@ -73,7 +77,7 @@ contract DemoDeploy is Script {
 
         // 4. Deploy MorphoVault
         console.log("4. Deploying MorphoVault...");
-        vault = new MorphoVault(
+        vault = new Morpho(
             address(token),
             address(morphoVault),
             address(rewardDistributor),

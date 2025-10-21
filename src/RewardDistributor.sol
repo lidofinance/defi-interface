@@ -3,12 +3,15 @@ pragma solidity 0.8.30;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract RewardDistributor {
+contract RewardDistributor is AccessControl {
     using SafeERC20 for IERC20;
 
     uint256 public constant MAX_BPS = 10_000;
+
+    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
 
     struct Recipient {
         address account;
@@ -32,7 +35,11 @@ contract RewardDistributor {
     error NoBalance();
     error NoShares();
 
-    constructor(address[] memory _recipients, uint256[] memory _basisPoints) {
+    constructor(
+        address _manager,
+        address[] memory _recipients,
+        uint256[] memory _basisPoints
+    ) {
         if (_recipients.length != _basisPoints.length) {
             revert InvalidRecipientsLength();
         }
@@ -65,9 +72,13 @@ contract RewardDistributor {
         if (totalBps != MAX_BPS) {
             revert InvalidBasisPointsSum();
         }
+
+        _grantRole(MANAGER_ROLE, _manager);
     }
 
-    function redeemFromVault(address vault) external returns (uint256 assets) {
+    function redeem(
+        address vault
+    ) external onlyRole(MANAGER_ROLE) returns (uint256 assets) {
         IERC4626 vaultContract = IERC4626(vault);
         uint256 shares = vaultContract.balanceOf(address(this));
 
@@ -80,7 +91,7 @@ contract RewardDistributor {
         emit VaultRedeemed(vault, shares, assets);
     }
 
-    function distribute(address token) external {
+    function distribute(address token) external onlyRole(MANAGER_ROLE) {
         IERC20 tokenContract = IERC20(token);
         uint256 balance = tokenContract.balanceOf(address(this));
 

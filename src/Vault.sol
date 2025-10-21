@@ -11,12 +11,7 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-abstract contract BaseVault is
-    ERC4626,
-    AccessControl,
-    ReentrancyGuard,
-    Pausable
-{
+abstract contract Vault is ERC4626, AccessControl, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -135,7 +130,12 @@ abstract contract BaseVault is
             assetsToDeposit
         );
 
-        _depositToProtocol(assetsToDeposit, shareReceiver);
+        uint256 protocolSharesReceived = _depositToProtocol(
+            assetsToDeposit,
+            shareReceiver
+        );
+        if (protocolSharesReceived == 0) revert ZeroAmount();
+
         _mint(shareReceiver, sharesMinted);
 
         lastTotalAssets = totalAssets();
@@ -146,6 +146,52 @@ abstract contract BaseVault is
             assetsToDeposit,
             sharesMinted
         );
+    }
+
+    function mint(
+        uint256 sharesToMint,
+        address shareReceiver
+    )
+        public
+        virtual
+        override
+        nonReentrant
+        whenNotPaused
+        returns (uint256 assetsRequired)
+    {
+        if (sharesToMint == 0) revert ZeroAmount();
+        if (shareReceiver == address(0)) revert ZeroAddress();
+
+        _harvestFees();
+
+        assetsRequired = previewMint(sharesToMint);
+        if (assetsRequired == 0) revert ZeroAmount();
+        if (totalSupply() == 0 && assetsRequired < minFirstDeposit) {
+            revert FirstDepositTooSmall(minFirstDeposit, assetsRequired);
+        }
+
+        SafeERC20.safeTransferFrom(
+            IERC20(asset()),
+            msg.sender,
+            address(this),
+            assetsRequired
+        );
+
+        uint256 protocolAssetsUsed = _mintToProtocol(
+            sharesToMint,
+            shareReceiver
+        );
+
+        // Sanity check: ensure protocol consumed expected assets
+        if (protocolAssetsUsed == 0) revert ZeroAmount();
+        if (protocolAssetsUsed > assetsRequired) {
+            revert InsufficientLiquidity(protocolAssetsUsed, assetsRequired);
+        }
+
+        _mint(shareReceiver, sharesToMint);
+        lastTotalAssets = totalAssets();
+
+        emit Deposited(msg.sender, shareReceiver, assetsRequired, sharesToMint);
     }
 
     function withdraw(
@@ -175,20 +221,17 @@ abstract contract BaseVault is
             _spendAllowance(shareOwner, msg.sender, sharesBurned);
         }
 
-        _burn(shareOwner, sharesBurned);
-
-        uint256 actualAssetsWithdrawn = _withdrawFromProtocol(
+        uint256 assetsWithdrawn = _withdrawFromProtocol(
             assetsToWithdraw,
             assetReceiver,
             shareOwner
         );
 
-        if (actualAssetsWithdrawn < assetsToWithdraw) {
-            revert InsufficientLiquidity(
-                assetsToWithdraw,
-                actualAssetsWithdrawn
-            );
+        if (assetsWithdrawn < assetsToWithdraw) {
+            revert InsufficientLiquidity(assetsToWithdraw, assetsWithdrawn);
         }
+
+        _burn(shareOwner, sharesBurned);
 
         lastTotalAssets = totalAssets();
 
@@ -196,87 +239,55 @@ abstract contract BaseVault is
             msg.sender,
             assetReceiver,
             shareOwner,
-            actualAssetsWithdrawn,
+            assetsWithdrawn,
             sharesBurned
         );
     }
 
     function redeem(
-        uint256 shares,
-        address receiver,
-        address owner
+        uint256 sharesToRedeem,
+        address assetReceiver,
+        address shareOwner
     )
         public
         virtual
         override
         nonReentrant
         whenNotPaused
-        returns (uint256 assets)
+        returns (uint256 assetsWithdrawn)
     {
-        if (shares == 0) revert ZeroAmount();
-        if (receiver == address(0)) revert ZeroAddress();
+        if (sharesToRedeem == 0) revert ZeroAmount();
+        if (assetReceiver == address(0)) revert ZeroAddress();
 
-        if (msg.sender != owner) {
-            _spendAllowance(owner, msg.sender, shares);
+        if (msg.sender != shareOwner) {
+            _spendAllowance(shareOwner, msg.sender, sharesToRedeem);
         }
 
         _harvestFees();
 
-        if (shares > balanceOf(owner)) {
-            revert InsufficientShares(shares, balanceOf(owner));
+        if (sharesToRedeem > balanceOf(shareOwner)) {
+            revert InsufficientShares(sharesToRedeem, balanceOf(shareOwner));
         }
 
-        assets = previewRedeem(shares);
-        if (assets == 0) revert ZeroAmount();
-
-        _burn(owner, shares);
-
-        uint256 actualAssets = _withdrawFromProtocol(assets, receiver, owner);
-
-        if (actualAssets < assets) {
-            revert InsufficientLiquidity(assets, actualAssets);
-        }
-
-        assets = actualAssets;
-        lastTotalAssets = totalAssets();
-
-        emit Withdrawn(msg.sender, receiver, owner, actualAssets, shares);
-    }
-
-    function mint(
-        uint256 shares,
-        address receiver
-    )
-        public
-        virtual
-        override
-        nonReentrant
-        whenNotPaused
-        returns (uint256 assets)
-    {
-        if (shares == 0) revert ZeroAmount();
-        if (receiver == address(0)) revert ZeroAddress();
-
-        _harvestFees();
-
-        assets = previewMint(shares);
-        if (assets == 0) revert ZeroAmount();
-        if (totalSupply() == 0 && assets < minFirstDeposit) {
-            revert FirstDepositTooSmall(minFirstDeposit, assets);
-        }
-
-        SafeERC20.safeTransferFrom(
-            IERC20(asset()),
-            msg.sender,
-            address(this),
-            assets
+        assetsWithdrawn = _redeemFromProtocol(
+            sharesToRedeem,
+            assetReceiver,
+            shareOwner
         );
 
-        _depositToProtocol(assets, receiver);
-        _mint(receiver, shares);
+        if (assetsWithdrawn == 0) revert ZeroAmount();
+
+        _burn(shareOwner, sharesToRedeem);
+
         lastTotalAssets = totalAssets();
 
-        emit Deposited(msg.sender, receiver, assets, shares);
+        emit Withdrawn(
+            msg.sender,
+            assetReceiver,
+            shareOwner,
+            assetsWithdrawn,
+            sharesToRedeem
+        );
     }
 
     /* ========== INTERNAL PROTOCOL FUNCTIONS ========== */
@@ -284,10 +295,21 @@ abstract contract BaseVault is
     function _depositToProtocol(
         uint256 assets,
         address receiver
-    ) internal virtual returns (uint256);
+    ) internal virtual returns (uint256 protocolSharesReceived);
+
+    function _mintToProtocol(
+        uint256 shares,
+        address receiver
+    ) internal virtual returns (uint256 protocolAssetsUsed);
 
     function _withdrawFromProtocol(
         uint256 assets,
+        address receiver,
+        address owner
+    ) internal virtual returns (uint256 actualAssets);
+
+    function _redeemFromProtocol(
+        uint256 shares,
         address receiver,
         address owner
     ) internal virtual returns (uint256 actualAssets);
@@ -375,9 +397,9 @@ abstract contract BaseVault is
         address receiver
     ) external virtual onlyRole(EMERGENCY_ROLE) returns (uint256 amount) {
         if (receiver == address(0)) revert ZeroAddress();
+        _pause();
 
         amount = _emergencyWithdrawFromProtocol(receiver);
-
         emit EmergencyWithdrawal(receiver, amount);
     }
 
