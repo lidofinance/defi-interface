@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 import {VaultTestBase} from "./VaultTestBase.sol";
 import {Vault} from "src/Vault.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 contract VaultConfigTest is VaultTestBase {
     function test_SetMinFirstDeposit_Basic() public {
@@ -17,7 +18,13 @@ contract VaultConfigTest is VaultTestBase {
     function test_SetMinFirstDeposit_RevertIf_NotAdmin() public {
         uint256 newMinDeposit = 5000;
 
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                alice,
+                vault.DEFAULT_ADMIN_ROLE()
+            )
+        );
         vm.prank(alice);
         vault.setMinFirstDeposit(newMinDeposit);
     }

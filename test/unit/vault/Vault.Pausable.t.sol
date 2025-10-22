@@ -3,6 +3,8 @@ pragma solidity 0.8.30;
 
 import {VaultTestBase} from "./VaultTestBase.sol";
 import {Vault} from "src/Vault.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 contract VaultPausableTest is VaultTestBase {
     function test_Pause_Basic() public {
@@ -12,7 +14,13 @@ contract VaultPausableTest is VaultTestBase {
     }
 
     function test_Pause_RevertIf_NotPauser() public {
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                alice,
+                vault.PAUSER_ROLE()
+            )
+        );
         vm.prank(alice);
         vault.pause();
     }
@@ -38,7 +46,13 @@ contract VaultPausableTest is VaultTestBase {
     function test_Unpause_RevertIf_NotPauser() public {
         vault.pause();
 
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                alice,
+                vault.PAUSER_ROLE()
+            )
+        );
         vm.prank(alice);
         vault.unpause();
     }
@@ -46,7 +60,7 @@ contract VaultPausableTest is VaultTestBase {
     function test_Pause_BlocksDeposit() public {
         vault.pause();
 
-        vm.expectRevert();
+        vm.expectRevert(Pausable.EnforcedPause.selector);
         vm.prank(alice);
         vault.deposit(10_000e6, alice);
     }
@@ -54,7 +68,7 @@ contract VaultPausableTest is VaultTestBase {
     function test_Pause_BlocksMint() public {
         vault.pause();
 
-        vm.expectRevert();
+        vm.expectRevert(Pausable.EnforcedPause.selector);
         vm.prank(alice);
         vault.mint(10_000e6, alice);
     }
@@ -65,7 +79,7 @@ contract VaultPausableTest is VaultTestBase {
 
         vault.pause();
 
-        vm.expectRevert();
+        vm.expectRevert(Pausable.EnforcedPause.selector);
         vm.prank(alice);
         vault.withdraw(10_000e6, alice, alice);
     }
@@ -76,7 +90,7 @@ contract VaultPausableTest is VaultTestBase {
 
         vault.pause();
 
-        vm.expectRevert();
+        vm.expectRevert(Pausable.EnforcedPause.selector);
         vm.prank(alice);
         vault.redeem(shares / 10, alice, alice);
     }

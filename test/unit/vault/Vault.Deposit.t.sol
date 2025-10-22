@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 import {VaultTestBase} from "./VaultTestBase.sol";
 import {Vault} from "src/Vault.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 contract VaultDepositTest is VaultTestBase {
     function test_Deposit_Basic() public {
@@ -60,7 +61,7 @@ contract VaultDepositTest is VaultTestBase {
     function test_Deposit_RevertIf_Paused() public {
         vault.pause();
 
-        vm.expectRevert();
+        vm.expectRevert(Pausable.EnforcedPause.selector);
         vm.prank(alice);
         vault.deposit(10_000e6, alice);
     }
@@ -108,6 +109,44 @@ contract VaultDepositTest is VaultTestBase {
         assertEq(assets, expectedAssets);
         assertEq(vault.balanceOf(alice), sharesToMint);
         assertEq(vault.totalAssets(), assets);
+    }
+
+    function test_Mint_RevertIf_ZeroShares() public {
+        vm.expectRevert(Vault.ZeroAmount.selector);
+        vm.prank(alice);
+        vault.mint(0, alice);
+    }
+
+    function test_Mint_RevertIf_ZeroReceiver() public {
+        vm.expectRevert(Vault.ZeroAddress.selector);
+        vm.prank(alice);
+        vault.mint(10_000e6, address(0));
+    }
+
+    function test_Mint_RevertIf_FirstDepositTooSmall() public {
+        uint256 sharesToMint = (vault.minFirstDeposit() - 1) * 10 ** vault.OFFSET();
+        uint256 expectedAssets = vault.previewMint(sharesToMint);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Vault.FirstDepositTooSmall.selector,
+                vault.minFirstDeposit(),
+                expectedAssets
+            )
+        );
+
+        vm.prank(alice);
+        vault.mint(sharesToMint, alice);
+    }
+
+    function test_Mint_RevertIf_Paused() public {
+        uint256 sharesToMint = vault.minFirstDeposit() * 10 ** vault.OFFSET();
+
+        vault.pause();
+
+        vm.expectRevert(Pausable.EnforcedPause.selector);
+        vm.prank(alice);
+        vault.mint(sharesToMint, alice);
     }
 
     function test_PreviewDeposit_Accurate() public {

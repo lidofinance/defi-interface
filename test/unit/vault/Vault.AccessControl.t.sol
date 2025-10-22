@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 import {VaultTestBase} from "./VaultTestBase.sol";
 import {Vault} from "src/Vault.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 contract VaultAccessControlTest is VaultTestBase {
     function test_AdminRole_DefaultAdmin() public view {
@@ -53,7 +54,13 @@ contract VaultAccessControlTest is VaultTestBase {
         address pauser = makeAddr("pauser");
         bytes32 pauserRole = vault.PAUSER_ROLE();
 
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                alice,
+                vault.getRoleAdmin(pauserRole)
+            )
+        );
         vm.prank(alice);
         vault.grantRole(pauserRole, pauser);
     }
@@ -64,7 +71,13 @@ contract VaultAccessControlTest is VaultTestBase {
 
         vault.grantRole(pauserRole, pauser);
 
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                alice,
+                vault.getRoleAdmin(pauserRole)
+            )
+        );
         vm.prank(alice);
         vault.revokeRole(pauserRole, pauser);
     }

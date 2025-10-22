@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import "forge-std/Test.sol";
 import {VaultTestBase} from "./VaultTestBase.sol";
 import {Vault} from "src/Vault.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 contract VaultFeesTest is VaultTestBase {
 
@@ -52,7 +53,13 @@ contract VaultFeesTest is VaultTestBase {
     function test_SetRewardFee_RevertIf_NotFeeManager() public {
         uint16 newFee = 1000;
 
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                alice,
+                vault.FEE_MANAGER_ROLE()
+            )
+        );
         vm.prank(alice);
         vault.setRewardFee(newFee);
     }
@@ -139,9 +146,10 @@ contract VaultFeesTest is VaultTestBase {
         asset.mint(address(vault), profit);
 
         uint256 expectedShares = _calculateExpectedFeeShares(profit);
+        uint256 expectedFeeAmount = (profit * REWARD_FEE) / vault.FEE_PRECISION();
 
-        vm.expectEmit(false, false, false, false);
-        emit Vault.FeesHarvested(0, 0, 0);
+        vm.expectEmit(false, false, false, true);
+        emit Vault.FeesHarvested(profit, expectedFeeAmount, expectedShares);
 
         vault.harvestFees();
 

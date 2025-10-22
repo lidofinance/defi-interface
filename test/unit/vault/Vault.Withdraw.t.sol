@@ -3,6 +3,8 @@ pragma solidity 0.8.30;
 
 import {VaultTestBase} from "./VaultTestBase.sol";
 import {Vault} from "src/Vault.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 contract VaultWithdrawTest is VaultTestBase {
     function test_Withdraw_Basic() public {
@@ -20,6 +22,24 @@ contract VaultWithdrawTest is VaultTestBase {
 
         assertEq(shares, expectedShares);
         assertEq(aliceBalanceAfter - aliceBalanceBefore, withdrawAmount);
+    }
+
+    function test_Withdraw_RevertIf_ZeroAmount() public {
+        vm.prank(alice);
+        vault.deposit(10_000e6, alice);
+
+        vm.expectRevert(Vault.ZeroAmount.selector);
+        vm.prank(alice);
+        vault.withdraw(0, alice, alice);
+    }
+
+    function test_Withdraw_RevertIf_ZeroReceiver() public {
+        vm.prank(alice);
+        vault.deposit(10_000e6, alice);
+
+        vm.expectRevert(Vault.ZeroAddress.selector);
+        vm.prank(alice);
+        vault.withdraw(10_000e6, address(0), alice);
     }
 
     function test_Withdraw_DoesNotBurnAllShares() public {
@@ -44,9 +64,10 @@ contract VaultWithdrawTest is VaultTestBase {
         vault.deposit(100_000e6, alice);
 
         uint256 withdrawAmount = 10_000e6;
+        uint256 expectedShares = vault.previewWithdraw(withdrawAmount);
 
-        vm.expectEmit(true, true, true, false);
-        emit Withdrawn(alice, alice, alice, withdrawAmount, 0);
+        vm.expectEmit(true, true, true, true);
+        emit Withdrawn(alice, alice, alice, withdrawAmount, expectedShares);
 
         vm.prank(alice);
         vault.withdraw(withdrawAmount, alice, alice);
@@ -105,7 +126,14 @@ contract VaultWithdrawTest is VaultTestBase {
         vm.prank(alice);
         vault.approve(bob, requiredShares - 1);
 
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IERC20Errors.ERC20InsufficientAllowance.selector,
+                bob,
+                requiredShares - 1,
+                requiredShares
+            )
+        );
         vm.prank(bob);
         vault.withdraw(withdrawAmount, bob, alice);
     }
@@ -114,9 +142,30 @@ contract VaultWithdrawTest is VaultTestBase {
         vm.prank(alice);
         vault.deposit(100_000e6, alice);
 
-        vm.expectRevert();
+        uint256 withdrawAmount = 10_000e6;
+        uint256 requiredShares = vault.previewWithdraw(withdrawAmount);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IERC20Errors.ERC20InsufficientAllowance.selector,
+                bob,
+                0,
+                requiredShares
+            )
+        );
         vm.prank(bob);
-        vault.withdraw(10_000e6, bob, alice);
+        vault.withdraw(withdrawAmount, bob, alice);
+    }
+
+    function test_Withdraw_RevertIf_Paused() public {
+        vm.prank(alice);
+        vault.deposit(10_000e6, alice);
+
+        vault.pause();
+
+        vm.expectRevert(Pausable.EnforcedPause.selector);
+        vm.prank(alice);
+        vault.withdraw(10_000e6, alice, alice);
     }
 
     function test_Withdraw_SelfDoesNotRequireApproval() public {
@@ -186,6 +235,89 @@ contract VaultWithdrawTest is VaultTestBase {
         assertEq(assets, expectedAssets);
         assertEq(vault.balanceOf(alice), 0);
         assertEq(asset.balanceOf(alice), INITIAL_BALANCE);
+    }
+
+    function test_Redeem_RevertIf_ZeroShares() public {
+        vm.prank(alice);
+        vault.deposit(10_000e6, alice);
+
+        vm.expectRevert(Vault.ZeroAmount.selector);
+        vm.prank(alice);
+        vault.redeem(0, alice, alice);
+    }
+
+    function test_Redeem_RevertIf_ZeroReceiver() public {
+        vm.prank(alice);
+        uint256 shares = vault.deposit(10_000e6, alice);
+
+        vm.expectRevert(Vault.ZeroAddress.selector);
+        vm.prank(alice);
+        vault.redeem(shares / 2, address(0), alice);
+    }
+
+    function test_Redeem_RevertIf_NoApproval() public {
+        vm.prank(alice);
+        uint256 shares = vault.deposit(10_000e6, alice);
+
+        uint256 sharesToRedeem = shares / 10;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IERC20Errors.ERC20InsufficientAllowance.selector,
+                bob,
+                0,
+                sharesToRedeem
+            )
+        );
+        vm.prank(bob);
+        vault.redeem(sharesToRedeem, bob, alice);
+    }
+
+    function test_Redeem_DelegatedWithApproval() public {
+        vm.prank(alice);
+        uint256 shares = vault.deposit(100_000e6, alice);
+
+        uint256 sharesToRedeem = shares / 10;
+        vm.prank(alice);
+        vault.approve(bob, sharesToRedeem);
+
+        uint256 bobAssetBefore = asset.balanceOf(bob);
+        uint256 aliceSharesBefore = vault.balanceOf(alice);
+
+        vm.prank(bob);
+        uint256 assets = vault.redeem(sharesToRedeem, bob, alice);
+
+        assertEq(assets, vault.previewRedeem(sharesToRedeem));
+        assertEq(vault.balanceOf(alice), aliceSharesBefore - sharesToRedeem);
+        assertEq(vault.allowance(alice, bob), 0);
+        assertEq(asset.balanceOf(bob) - bobAssetBefore, assets);
+    }
+
+    function test_Redeem_RevertIf_Paused() public {
+        vm.prank(alice);
+        uint256 shares = vault.deposit(10_000e6, alice);
+
+        vault.pause();
+
+        vm.expectRevert(Pausable.EnforcedPause.selector);
+        vm.prank(alice);
+        vault.redeem(shares / 10, alice, alice);
+    }
+
+    function test_Redeem_RevertIf_InsufficientShares() public {
+        vm.prank(alice);
+        uint256 shares = vault.deposit(10_000e6, alice);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Vault.InsufficientShares.selector,
+                shares + 1,
+                shares
+            )
+        );
+
+        vm.prank(alice);
+        vault.redeem(shares + 1, alice, alice);
     }
 
     function test_PreviewWithdraw_Accurate() public {

@@ -3,6 +3,8 @@ pragma solidity 0.8.30;
 
 import {VaultTestBase} from "./VaultTestBase.sol";
 import {Vault} from "src/Vault.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 contract VaultEmergencyTest is VaultTestBase {
     function test_EmergencyWithdraw_Basic() public {
@@ -24,7 +26,13 @@ contract VaultEmergencyTest is VaultTestBase {
         vm.prank(alice);
         vault.deposit(100_000e6, alice);
 
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                alice,
+                vault.EMERGENCY_ROLE()
+            )
+        );
         vm.prank(alice);
         vault.emergencyWithdraw(alice);
     }
@@ -50,6 +58,11 @@ contract VaultEmergencyTest is VaultTestBase {
         vault.emergencyWithdraw(receiver);
 
         assertEq(asset.balanceOf(receiver), 0);
+    }
+
+    function test_EmergencyWithdraw_RevertIf_ReceiverZeroAddress() public {
+        vm.expectRevert(Vault.ZeroAddress.selector);
+        vault.emergencyWithdraw(address(0));
     }
 
     function test_EmergencyWithdraw_DoesNotAffectShares() public {
@@ -84,7 +97,7 @@ contract VaultEmergencyTest is VaultTestBase {
 
         address receiver = makeAddr("receiver");
 
-        vm.expectRevert();
+        vm.expectRevert(Pausable.EnforcedPause.selector);
         vault.emergencyWithdraw(receiver);
     }
 

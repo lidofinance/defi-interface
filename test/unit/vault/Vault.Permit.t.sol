@@ -163,7 +163,33 @@ contract VaultPermitTest is VaultTestBase {
         vault.permit(owner, bob, amount, deadline, v, r, s);
         assertEq(vault.allowance(owner, bob), amount);
 
-        vm.expectRevert();
+        nonce = vault.nonces(owner);
+        structHash = keccak256(
+            abi.encode(
+                keccak256(
+                    "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+                ),
+                owner,
+                bob,
+                amount,
+                nonce,
+                deadline
+            )
+        );
+
+        digest = keccak256(
+            abi.encodePacked("\x19\x01", vault.DOMAIN_SEPARATOR(), structHash)
+        );
+
+        address recoveredSigner = ecrecover(digest, v, r, s);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ERC20Permit.ERC2612InvalidSigner.selector,
+                recoveredSigner,
+                owner
+            )
+        );
         vault.permit(owner, bob, amount, deadline, v, r, s);
     }
 
