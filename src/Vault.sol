@@ -184,16 +184,12 @@ abstract contract Vault is
             assetsRequired
         );
 
-        uint256 protocolAssetsUsed = _mintToProtocol(
-            sharesToMint,
+        uint256 protocolSharesReceived = _depositToProtocol(
+            assetsRequired,
             shareReceiver
         );
 
-        // Sanity check: ensure protocol consumed expected assets
-        if (protocolAssetsUsed == 0) revert ZeroAmount();
-        if (protocolAssetsUsed > assetsRequired) {
-            revert InsufficientLiquidity(protocolAssetsUsed, assetsRequired);
-        }
+        if (protocolSharesReceived == 0) revert ZeroAmount();
 
         _mint(shareReceiver, sharesToMint);
         lastTotalAssets = totalAssets();
@@ -276,8 +272,10 @@ abstract contract Vault is
             revert InsufficientShares(sharesToRedeem, balanceOf(shareOwner));
         }
 
-        assetsWithdrawn = _redeemFromProtocol(
-            sharesToRedeem,
+        uint256 assetsToWithdraw = convertToAssets(sharesToRedeem);
+
+        assetsWithdrawn = _withdrawFromProtocol(
+            assetsToWithdraw,
             assetReceiver,
             shareOwner
         );
@@ -304,19 +302,8 @@ abstract contract Vault is
         address receiver
     ) internal virtual returns (uint256 protocolSharesReceived);
 
-    function _mintToProtocol(
-        uint256 shares,
-        address receiver
-    ) internal virtual returns (uint256 protocolAssetsUsed);
-
     function _withdrawFromProtocol(
         uint256 assets,
-        address receiver,
-        address owner
-    ) internal virtual returns (uint256 actualAssets);
-
-    function _redeemFromProtocol(
-        uint256 shares,
         address receiver,
         address owner
     ) internal virtual returns (uint256 actualAssets);

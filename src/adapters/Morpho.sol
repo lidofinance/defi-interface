@@ -73,25 +73,6 @@ contract Morpho is Vault {
         return shares;
     }
 
-    function _mintToProtocol(
-        uint256 shares,
-        address /* receiver */
-    ) internal override returns (uint256 assets) {
-        assets = MORPHO_VAULT.mint(shares, address(this));
-
-        if (assets == 0) {
-            revert MorphoDepositFailed();
-        }
-
-        emit MorphoDeposit(
-            assets,
-            shares,
-            MORPHO_VAULT.balanceOf(address(this))
-        );
-
-        return assets;
-    }
-
     function _withdrawFromProtocol(
         uint256 assets,
         address receiver,
@@ -116,23 +97,6 @@ contract Morpho is Vault {
         );
 
         return assets;
-    }
-
-    function _redeemFromProtocol(
-        uint256 shares,
-        address receiver,
-        address /* owner */
-    ) internal override returns (uint256 assets) {
-        uint256 assetsExpected = convertToAssets(shares);
-        uint256 morphoShares = MORPHO_VAULT.convertToShares(assetsExpected);
-
-        assets = MORPHO_VAULT.redeem(morphoShares, receiver, address(this));
-
-        emit MorphoWithdrawal(
-            assets,
-            morphoShares,
-            MORPHO_VAULT.balanceOf(address(this))
-        );
     }
 
     function _emergencyWithdrawFromProtocol(
