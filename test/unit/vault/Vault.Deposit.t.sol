@@ -167,4 +167,151 @@ contract VaultDepositTest is VaultTestBase {
         uint256 expectedShares = vault.previewDeposit(10_000e6);
         assertEq(victimShares, expectedShares);
     }
+
+    /* ========== FUZZING TESTS ========== */
+
+    // Fuzz test for successful deposit with various amounts
+    function testFuzz_Deposit_Success(uint96 depositAmount) public {
+        // Bound depositAmount to avoid minFirstDeposit issues and overflow
+        depositAmount = uint96(bound(depositAmount, 1000, type(uint96).max));
+
+        // Mint additional tokens to alice if needed
+        if (depositAmount > INITIAL_BALANCE) {
+            asset.mint(alice, depositAmount - INITIAL_BALANCE);
+        }
+
+        uint256 expectedShares = vault.previewDeposit(depositAmount);
+        uint256 aliceBalanceBefore = asset.balanceOf(alice);
+
+        vm.prank(alice);
+        uint256 shares = vault.deposit(depositAmount, alice);
+
+        // Verify shares were issued correctly
+        assertEq(shares, expectedShares);
+        assertEq(vault.balanceOf(alice), shares);
+
+        // Verify balance changed correctly
+        assertEq(aliceBalanceBefore - asset.balanceOf(alice), depositAmount);
+        assertEq(vault.totalAssets(), depositAmount);
+    }
+
+    // Fuzz test for successful mint with various share amounts
+    function testFuzz_Mint_Success(uint96 sharesToMint) public {
+        // Bound sharesToMint to avoid minFirstDeposit issues
+        sharesToMint = uint96(bound(sharesToMint, 1000 * 10 ** vault.OFFSET(), type(uint96).max));
+
+        uint256 expectedAssets = vault.previewMint(sharesToMint);
+
+        // Mint additional tokens to alice if needed
+        if (expectedAssets > INITIAL_BALANCE) {
+            asset.mint(alice, expectedAssets - INITIAL_BALANCE);
+        }
+
+        uint256 aliceBalanceBefore = asset.balanceOf(alice);
+
+        vm.prank(alice);
+        uint256 assets = vault.mint(sharesToMint, alice);
+
+        // Verify assets were taken correctly
+        assertEq(assets, expectedAssets);
+
+        // Verify shares were issued
+        assertEq(vault.balanceOf(alice), sharesToMint);
+
+        // Verify balance changed correctly
+        assertEq(aliceBalanceBefore - asset.balanceOf(alice), assets);
+    }
+
+    // Fuzz test for two sequential deposits with different users
+    function testFuzz_Deposit_WithExistingDeposits(uint96 firstDeposit, uint96 secondDeposit) public {
+        // Bound both deposits
+        firstDeposit = uint96(bound(firstDeposit, 1000, type(uint96).max / 2));
+        secondDeposit = uint96(bound(secondDeposit, 1000, type(uint96).max / 2));
+
+        // Mint additional tokens if needed
+        if (firstDeposit > INITIAL_BALANCE) {
+            asset.mint(alice, firstDeposit - INITIAL_BALANCE);
+        }
+        if (secondDeposit > INITIAL_BALANCE) {
+            asset.mint(bob, secondDeposit - INITIAL_BALANCE);
+        }
+
+        // First deposit by alice
+        vm.prank(alice);
+        vault.deposit(firstDeposit, alice);
+
+        // Calculate share price after first deposit
+        uint256 sharePriceAfterFirst = (vault.totalAssets() * 1e18) / vault.totalSupply();
+
+        // Second deposit by bob
+        uint256 expectedBobShares = vault.previewDeposit(secondDeposit);
+
+        vm.prank(bob);
+        uint256 bobShares = vault.deposit(secondDeposit, bob);
+
+        // Calculate share price after second deposit
+        uint256 sharePriceAfterSecond = (vault.totalAssets() * 1e18) / vault.totalSupply();
+
+        // Verify shares were issued correctly
+        assertEq(bobShares, expectedBobShares);
+
+        // Verify share price doesn't change unexpectedly (allow for rounding)
+        assertApproxEqAbs(sharePriceAfterFirst, sharePriceAfterSecond, 10);
+
+        // Verify total accounting is correct
+        assertEq(vault.totalAssets(), firstDeposit + secondDeposit);
+    }
+
+    // Fuzz test that rounding always favors the vault on deposit
+    function testFuzz_Deposit_RoundingFavorsVault(uint96 depositAmount) public {
+        // Bound depositAmount
+        depositAmount = uint96(bound(depositAmount, 1000, type(uint96).max / 2));
+
+        // Create an existing position to enable rounding effects
+        vm.prank(alice);
+        vault.deposit(100_000e6, alice);
+
+        // Mint additional tokens to bob
+        if (depositAmount > INITIAL_BALANCE) {
+            asset.mint(bob, depositAmount - INITIAL_BALANCE);
+        }
+
+        // Preview shares (rounds down per ERC4626)
+        uint256 previewedShares = vault.previewDeposit(depositAmount);
+
+        vm.prank(bob);
+        uint256 actualShares = vault.deposit(depositAmount, bob);
+
+        // User should receive less than or equal to previewed shares (rounding favors vault)
+        assertLe(actualShares, previewedShares);
+
+        // Should be very close (within 1 wei for rounding)
+        assertApproxEqAbs(actualShares, previewedShares, 1);
+    }
+
+    // Fuzz test that rounding favors the vault on mint
+    function testFuzz_Mint_RoundingFavorsVault(uint96 sharesToMint) public {
+        // Bound sharesToMint
+        sharesToMint = uint96(bound(sharesToMint, 1000 * 10 ** vault.OFFSET(), type(uint96).max / 2));
+
+        // Create an existing position to enable rounding effects
+        vm.prank(alice);
+        vault.deposit(100_000e6, alice);
+
+        uint256 previewedAssets = vault.previewMint(sharesToMint);
+
+        // Mint additional tokens to bob if needed
+        if (previewedAssets > INITIAL_BALANCE) {
+            asset.mint(bob, previewedAssets - INITIAL_BALANCE);
+        }
+
+        vm.prank(bob);
+        uint256 actualAssets = vault.mint(sharesToMint, bob);
+
+        // User should pay more than or equal to previewed assets (rounding favors vault)
+        assertGe(actualAssets, previewedAssets);
+
+        // Should be very close (within 1 wei for rounding)
+        assertApproxEqAbs(actualAssets, previewedAssets, 1);
+    }
 }

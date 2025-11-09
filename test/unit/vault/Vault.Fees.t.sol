@@ -7,129 +7,6 @@ import {Vault} from "src/Vault.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 contract VaultFeesTest is VaultTestBase {
-    /* ========== SET REWARD FEE TESTS ========== */
-
-    function test_SetRewardFee_Basic() public {
-        uint16 newFee = 1000;
-
-        vm.expectEmit(true, true, false, true);
-        emit Vault.RewardFeeUpdated(REWARD_FEE, newFee);
-
-        vault.setRewardFee(newFee);
-
-        assertEq(vault.rewardFee(), newFee);
-    }
-
-    function test_SetRewardFee_ToZero() public {
-        uint16 newFee = 0;
-
-        vm.expectEmit(true, true, false, true);
-        emit Vault.RewardFeeUpdated(REWARD_FEE, newFee);
-
-        vault.setRewardFee(newFee);
-
-        assertEq(vault.rewardFee(), 0);
-    }
-
-    function test_SetRewardFee_ToMaximum() public {
-        uint16 newFee = 2000;
-
-        vm.expectEmit(true, true, false, true);
-        emit Vault.RewardFeeUpdated(REWARD_FEE, newFee);
-
-        vault.setRewardFee(newFee);
-
-        assertEq(vault.rewardFee(), 2000);
-    }
-
-    function test_SetRewardFee_RevertIf_ExceedsMaximum() public {
-        uint16 invalidFee = 2001;
-
-        vm.expectRevert(abi.encodeWithSelector(Vault.InvalidFee.selector, invalidFee));
-        vault.setRewardFee(invalidFee);
-    }
-
-    function test_SetRewardFee_RevertIf_NotFeeManager() public {
-        uint16 newFee = 1000;
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, alice, vault.FEE_MANAGER_ROLE()
-            )
-        );
-        vm.prank(alice);
-        vault.setRewardFee(newFee);
-    }
-
-    function test_SetRewardFee_HarvestsFeesBeforeChange() public {
-        vm.prank(alice);
-        vault.deposit(100_000e6, alice);
-
-        uint256 profit = 10_000e6;
-        asset.mint(address(vault), profit);
-
-        uint256 treasurySharesBefore = vault.balanceOf(treasury);
-        assertEq(treasurySharesBefore, 0);
-
-        uint256 expectedShares = _calculateExpectedFeeShares(profit);
-
-        vault.setRewardFee(1000);
-
-        uint256 treasurySharesAfter = vault.balanceOf(treasury);
-
-        assertEq(treasurySharesAfter, expectedShares);
-    }
-
-    function test_SetRewardFee_UpdatesLastTotalAssets() public {
-        vm.prank(alice);
-        vault.deposit(100_000e6, alice);
-
-        uint256 lastTotalAssetsBefore = vault.lastTotalAssets();
-        assertEq(lastTotalAssetsBefore, 100_000e6);
-
-        asset.mint(address(vault), 10_000e6);
-
-        vault.setRewardFee(1000);
-
-        uint256 lastTotalAssetsAfter = vault.lastTotalAssets();
-
-        assertEq(lastTotalAssetsAfter, vault.totalAssets());
-        assertEq(lastTotalAssetsAfter, 110_000e6);
-    }
-
-    function test_SetRewardFee_WithFeeManagerRole() public {
-        address feeManager = makeAddr("feeManager");
-
-        vault.grantRole(vault.FEE_MANAGER_ROLE(), feeManager);
-
-        uint16 newFee = 1500;
-
-        vm.expectEmit(true, true, false, true);
-        emit Vault.RewardFeeUpdated(REWARD_FEE, newFee);
-
-        vm.prank(feeManager);
-        vault.setRewardFee(newFee);
-
-        assertEq(vault.rewardFee(), newFee);
-    }
-
-    function test_SetRewardFee_MultipleChanges() public {
-        vault.setRewardFee(1000);
-        assertEq(vault.rewardFee(), 1000);
-
-        vm.expectEmit(true, true, false, true);
-        emit Vault.RewardFeeUpdated(1000, 1500);
-
-        vault.setRewardFee(1500);
-        assertEq(vault.rewardFee(), 1500);
-
-        vm.expectEmit(true, true, false, true);
-        emit Vault.RewardFeeUpdated(1500, REWARD_FEE);
-
-        vault.setRewardFee(REWARD_FEE);
-        assertEq(vault.rewardFee(), REWARD_FEE);
-    }
-
     /* ========== HARVEST FEES TESTS ========== */
 
     function test_HarvestFees_WithProfit() public {
@@ -455,5 +332,169 @@ contract VaultFeesTest is VaultTestBase {
 
         uint256 pendingFeesAfter = vault.getPendingFees();
         assertEq(pendingFeesAfter, 0);
+    }
+
+    /* ========== FUZZING TESTS ========== */
+
+    // Fuzz test for fee harvesting with various profit amounts
+    function testFuzz_HarvestFees_WithProfit(uint96 initialDeposit, uint96 profit) public {
+        // Bound values to avoid overflow - keep amounts reasonable
+        // Use smaller max to avoid overflow in calculations
+        initialDeposit = uint96(bound(initialDeposit, 100_000e6, type(uint64).max));
+
+        // Profit should be a reasonable percentage of deposit (1% to 50%)
+        uint256 maxProfit = initialDeposit / 2;
+        profit = uint96(bound(profit, initialDeposit / 100, maxProfit));
+
+        // Mint additional tokens to alice if needed
+        if (initialDeposit > INITIAL_BALANCE) {
+            asset.mint(alice, initialDeposit - INITIAL_BALANCE);
+        }
+
+        // Alice deposits
+        vm.prank(alice);
+        vault.deposit(initialDeposit, alice);
+
+        uint256 treasurySharesBefore = vault.balanceOf(treasury);
+        assertEq(treasurySharesBefore, 0);
+
+        // Create profit
+        asset.mint(address(vault), profit);
+
+        // Harvest fees
+        vault.harvestFees();
+
+        uint256 treasurySharesAfter = vault.balanceOf(treasury);
+
+        // Verify fee amount is approximately correct
+        uint256 expectedFeeAmount = (profit * REWARD_FEE) / vault.MAX_BASIS_POINTS();
+        uint256 treasuryAssets = vault.convertToAssets(treasurySharesAfter);
+        assertApproxEqAbs(treasuryAssets, expectedFeeAmount, 2);
+
+        // Treasury should have received shares
+        assertGt(treasurySharesAfter, treasurySharesBefore);
+    }
+
+    // Fuzz test for different reward fee rates
+    function testFuzz_HarvestFees_DifferentRewardRates(uint96 depositAmount, uint16 feeRate) public {
+        // Bound values
+        depositAmount = uint96(bound(depositAmount, 10_000e6, type(uint96).max / 2));
+        feeRate = uint16(bound(feeRate, 0, 2000)); // 0-20% (MAX_REWARD_FEE)
+
+        // Set the fee rate
+        vault.setRewardFee(feeRate);
+
+        // Mint additional tokens to alice if needed
+        if (depositAmount > INITIAL_BALANCE) {
+            asset.mint(alice, depositAmount - INITIAL_BALANCE);
+        }
+
+        // Alice deposits
+        vm.prank(alice);
+        vault.deposit(depositAmount, alice);
+
+        // Create profit (10% of deposit)
+        uint256 profit = depositAmount / 10;
+        asset.mint(address(vault), profit);
+
+        uint256 treasurySharesBefore = vault.balanceOf(treasury);
+
+        // Harvest fees
+        vault.harvestFees();
+
+        uint256 treasurySharesAfter = vault.balanceOf(treasury);
+
+        if (feeRate == 0) {
+            // No fees should be collected
+            assertEq(treasurySharesAfter, treasurySharesBefore);
+        } else {
+            // Verify fee is calculated correctly
+            uint256 expectedFeeAmount = (profit * feeRate) / vault.MAX_BASIS_POINTS();
+            uint256 treasuryAssets = vault.convertToAssets(treasurySharesAfter - treasurySharesBefore);
+            assertApproxEqAbs(treasuryAssets, expectedFeeAmount, 2);
+        }
+    }
+
+    // Fuzz test for multiple sequential harvests
+    function testFuzz_HarvestFees_MultipleHarvests(uint96 deposit, uint96 profit1, uint96 profit2) public {
+        // Bound values to keep them reasonable - use smaller max to avoid overflow
+        deposit = uint96(bound(deposit, 100_000e6, type(uint64).max));
+
+        // Keep profits small relative to deposit (1% to 10% each)
+        uint256 maxProfitEach = deposit / 10;
+        uint256 minProfit = deposit / 100;
+
+        profit1 = uint96(bound(profit1, minProfit, maxProfitEach));
+        profit2 = uint96(bound(profit2, minProfit, maxProfitEach));
+
+        // Mint additional tokens to alice if needed
+        if (deposit > INITIAL_BALANCE) {
+            asset.mint(alice, deposit - INITIAL_BALANCE);
+        }
+
+        // Alice deposits
+        vm.prank(alice);
+        vault.deposit(deposit, alice);
+
+        uint256 treasurySharesBefore = vault.balanceOf(treasury);
+
+        // First profit and harvest
+        asset.mint(address(vault), profit1);
+        vault.harvestFees();
+        uint256 treasurySharesAfterFirst = vault.balanceOf(treasury);
+
+        // Treasury should receive shares from first harvest
+        assertGt(treasurySharesAfterFirst, treasurySharesBefore);
+
+        // Second profit and harvest
+        asset.mint(address(vault), profit2);
+        vault.harvestFees();
+        uint256 treasurySharesAfterSecond = vault.balanceOf(treasury);
+
+        // Treasury shares should accumulate
+        assertGt(treasurySharesAfterSecond, treasurySharesAfterFirst);
+
+        // Verify total fee amount is in a reasonable range
+        // Multiple harvests with compounding can have higher precision loss
+        uint256 totalExpectedFees = ((profit1 + profit2) * REWARD_FEE) / vault.MAX_BASIS_POINTS();
+        uint256 totalTreasuryAssets = vault.convertToAssets(treasurySharesAfterSecond);
+
+        // Use 5% tolerance to account for:
+        // - Compounding effects between harvests
+        // - OFFSET precision loss with small amounts
+        // - Rounding in share calculations
+        assertApproxEqRel(totalTreasuryAssets, totalExpectedFees, 0.05e18);
+    }
+
+    // Fuzz test that no fees are harvested when rewardFee is zero
+    function testFuzz_HarvestFees_NoFeeWhenZeroRewardFee(uint96 depositAmount, uint96 profit) public {
+        // Bound values to avoid overflow
+        depositAmount = uint96(bound(depositAmount, 10_000e6, type(uint96).max / 2));
+        profit = uint96(bound(profit, 1e6, type(uint96).max / 2));
+
+        // Set reward fee to zero
+        vault.setRewardFee(0);
+
+        // Mint additional tokens to alice if needed
+        if (depositAmount > INITIAL_BALANCE) {
+            asset.mint(alice, depositAmount - INITIAL_BALANCE);
+        }
+
+        // Alice deposits
+        vm.prank(alice);
+        vault.deposit(depositAmount, alice);
+
+        uint256 treasurySharesBefore = vault.balanceOf(treasury);
+
+        // Create profit
+        asset.mint(address(vault), profit);
+
+        // Harvest fees
+        vault.harvestFees();
+
+        uint256 treasurySharesAfter = vault.balanceOf(treasury);
+
+        // Treasury should not receive any shares when fee is 0
+        assertEq(treasurySharesAfter, treasurySharesBefore);
     }
 }

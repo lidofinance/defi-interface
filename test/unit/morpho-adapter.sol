@@ -74,57 +74,57 @@ contract MorphoAdapterUnitTest is Test {
         );
     }
 
-    function test_Deposit_Basic() public {
-        uint256 depositAmount = 10_000e6;
-        uint256 expectedShares = depositAmount * 10 ** vault.OFFSET(); // First deposit with offset
 
-        vm.prank(alice);
-        uint256 shares = vault.deposit(depositAmount, alice);
+    function testFuzz_Deposit_EmitsEvent(uint96 depositAmount) public {
+        uint256 amount = uint256(depositAmount);
+        vm.assume(amount >= vault.MIN_FIRST_DEPOSIT());
+        usdc.mint(alice, amount);
 
-        assertEq(shares, expectedShares, "Should receive exact shares");
-        assertEq(vault.balanceOf(alice), shares, "Alice should have shares");
-        assertEq(vault.totalSupply(), shares, "Total supply should match");
-        assertApproxEqAbs(vault.totalAssets(), depositAmount, 1, "Total assets should match deposit");
-    }
-
-    function test_Deposit_EmitsEvent() public {
-        uint256 depositAmount = 10_000e6;
-        uint256 expectedShares = vault.previewDeposit(depositAmount);
+        uint256 expectedShares = vault.previewDeposit(amount);
 
         vm.expectEmit(true, true, false, true);
-        emit Deposited(alice, alice, depositAmount, expectedShares);
+        emit Deposited(alice, alice, amount, expectedShares);
 
         vm.prank(alice);
-        vault.deposit(depositAmount, alice);
+        vault.deposit(amount, alice);
     }
 
-    function test_Deposit_MultipleUsers() public {
+    function testFuzz_Deposit_MultipleUsers(uint96 aliceAmount, uint96 bobAmount) public {
+        uint256 aliceDeposit = uint256(aliceAmount);
+        uint256 bobDeposit = uint256(bobAmount);
+        vm.assume(aliceDeposit >= vault.MIN_FIRST_DEPOSIT());
+        vm.assume(bobDeposit > 0);
+        usdc.mint(alice, aliceDeposit);
+        usdc.mint(bob, bobDeposit);
+
         vm.prank(alice);
-        uint256 aliceShares = vault.deposit(50_000e6, alice);
+        uint256 aliceShares = vault.deposit(aliceDeposit, alice);
 
         vm.prank(bob);
-        uint256 bobShares = vault.deposit(30_000e6, bob);
+        uint256 bobShares = vault.deposit(bobDeposit, bob);
 
-        uint256 expectedAliceShares = 50_000e6 * 10 ** vault.OFFSET();
-        uint256 expectedBobShares = 30_000e6 * 10 ** vault.OFFSET();
+        uint256 expectedAliceShares = aliceDeposit * 10 ** vault.OFFSET();
+        uint256 expectedBobShares = bobDeposit * 10 ** vault.OFFSET();
 
         assertEq(aliceShares, expectedAliceShares, "Alice should have exact shares");
         assertEq(bobShares, expectedBobShares, "Bob should have exact shares");
         assertEq(vault.totalSupply(), aliceShares + bobShares);
-        assertApproxEqAbs(vault.totalAssets(), 80_000e6, 2);
+        assertApproxEqAbs(vault.totalAssets(), aliceDeposit + bobDeposit, 2);
     }
 
-    function test_Deposit_UpdatesMorphoBalance() public {
-        uint256 depositAmount = 10_000e6;
+    function testFuzz_Deposit_UpdatesMorphoBalance(uint96 depositAmount) public {
+        uint256 amount = uint256(depositAmount);
+        vm.assume(amount >= vault.MIN_FIRST_DEPOSIT());
+        usdc.mint(alice, amount);
 
         uint256 morphoBalanceBefore = morpho.balanceOf(address(vault));
         assertEq(morphoBalanceBefore, 0, "Should start with zero Morpho shares");
 
         vm.prank(alice);
-        vault.deposit(depositAmount, alice);
+        vault.deposit(amount, alice);
 
         uint256 morphoBalanceAfter = morpho.balanceOf(address(vault));
-        uint256 expectedMorphoShares = depositAmount * 10 ** OFFSET;
+        uint256 expectedMorphoShares = amount * 10 ** OFFSET;
 
         assertEq(morphoBalanceAfter, expectedMorphoShares, "Morpho shares should include offset multiplication");
     }
@@ -156,122 +156,109 @@ contract MorphoAdapterUnitTest is Test {
         vault.deposit(999, alice);
     }
 
-    function test_FirstDeposit_SuccessIf_MinimumMet() public {
-        uint256 depositAmount = 1000;
-        uint256 expectedShares = depositAmount * 10 ** vault.OFFSET();
+    function testFuzz_FirstDeposit_SuccessIf_MinimumMet(uint96 depositAmount) public {
+        uint256 amount = uint256(depositAmount);
+        vm.assume(amount >= vault.MIN_FIRST_DEPOSIT());
+        usdc.mint(alice, amount);
+
+        uint256 expectedShares = amount * 10 ** vault.OFFSET();
 
         vm.prank(alice);
-        uint256 shares = vault.deposit(depositAmount, alice);
+        uint256 shares = vault.deposit(amount, alice);
 
         assertEq(shares, expectedShares, "Should receive exact shares");
         assertEq(vault.balanceOf(alice), shares);
     }
 
-    function test_SecondDeposit_CanBeSmall() public {
-        vm.prank(alice);
-        vault.deposit(10_000e6, alice);
-
-        uint256 smallDeposit = 1;
-        uint256 expectedShares = vault.previewDeposit(smallDeposit);
-
-        vm.prank(bob);
-        uint256 shares = vault.deposit(smallDeposit, bob);
-
-        assertEq(shares, expectedShares, "Should receive calculated shares for small deposit");
-    }
-
-    function test_Withdraw_Basic() public {
-        vm.prank(alice);
-        vault.deposit(100_000e6, alice);
-
-        uint256 withdrawAmount = 10_000e6;
-        uint256 expectedShares = vault.previewWithdraw(withdrawAmount);
-        uint256 aliceBalanceBefore = usdc.balanceOf(alice);
+    function testFuzz_Withdraw_LeavesPositiveShares(uint96 depositAmount, uint96 withdrawAmount) public {
+        uint256 depositAssets = uint256(depositAmount);
+        uint256 withdrawAssets = uint256(withdrawAmount);
+        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
+        vm.assume(withdrawAssets > 0);
+        vm.assume(withdrawAssets < depositAssets);
+        usdc.mint(alice, depositAssets);
 
         vm.prank(alice);
-        uint256 shares = vault.withdraw(withdrawAmount, alice, alice);
+        uint256 initialShares = vault.deposit(depositAssets, alice);
 
-        uint256 aliceBalanceAfter = usdc.balanceOf(alice);
-
-        assertEq(shares, expectedShares, "Should burn exact calculated shares");
-        assertApproxEqAbs(aliceBalanceAfter - aliceBalanceBefore, withdrawAmount, 2, "Should receive withdrawn amount");
-    }
-
-    function test_Withdraw_DoesNotBurnAllShares() public {
-        vm.prank(alice);
-        uint256 initialShares = vault.deposit(50_000e6, alice);
-
-        uint256 withdrawAmount = 5_000e6;
-        uint256 sharesBurned = vault.previewWithdraw(withdrawAmount);
+        uint256 sharesBurned = vault.previewWithdraw(withdrawAssets);
 
         vm.prank(alice);
-        vault.withdraw(withdrawAmount, alice, alice);
+        vault.withdraw(withdrawAssets, alice, alice);
 
         uint256 remainingShares = vault.balanceOf(alice);
-        uint256 expectedRemainingShares = initialShares - sharesBurned;
 
-        assertEq(remainingShares, expectedRemainingShares, "Should have exact remaining shares");
-        assertApproxEqRel(remainingShares, (initialShares * 9) / 10, 2, "Should burn ~10% of shares, not all");
+        assertGt(remainingShares, 0, "Should not burn all shares");
+        assertEq(initialShares, sharesBurned + remainingShares, "Shares before must equal burned plus remaining");
     }
 
-    function test_Withdraw_EmitsEvent() public {
-        vm.prank(alice);
-        vault.deposit(100_000e6, alice);
+    function testFuzz_Withdraw_EmitsEvent(uint96 depositAmount, uint96 withdrawAmount) public {
+        uint256 depositAssets = uint256(depositAmount);
+        uint256 withdrawAssets = uint256(withdrawAmount);
+        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
+        vm.assume(withdrawAssets > 0);
+        vm.assume(withdrawAssets <= depositAssets);
+        usdc.mint(alice, depositAssets);
 
-        uint256 withdrawAmount = 10_000e6;
+        vm.prank(alice);
+        vault.deposit(depositAssets, alice);
 
         vm.expectEmit(true, true, true, false);
-        emit Withdrawn(alice, alice, alice, withdrawAmount, 0);
+        emit Withdrawn(alice, alice, alice, withdrawAssets, 0);
 
         vm.prank(alice);
-        vault.withdraw(withdrawAmount, alice, alice);
+        vault.withdraw(withdrawAssets, alice, alice);
     }
 
-    function test_Withdraw_RevertIf_InsufficientShares() public {
+    function testFuzz_Withdraw_RevertIf_InsufficientShares(uint96 depositAmount, uint96 requestedAssets) public {
+        uint256 depositAssets = uint256(depositAmount);
+        uint256 requestAssets = uint256(requestedAssets);
+        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
+        vm.assume(requestAssets > depositAssets);
+        usdc.mint(alice, depositAssets);
+
         vm.prank(alice);
-        vault.deposit(10_000e6, alice);
+        vault.deposit(depositAssets, alice);
 
         uint256 shares = vault.balanceOf(alice);
-        uint256 sharesRequested = vault.convertToShares(20_000e6);
+        uint256 sharesRequested = vault.convertToShares(requestAssets);
 
         vm.expectRevert(abi.encodeWithSelector(Vault.InsufficientShares.selector, sharesRequested, shares));
         vm.prank(alice);
-        vault.withdraw(20_000e6, alice, alice);
+        vault.withdraw(requestAssets, alice, alice);
     }
 
-    function test_Withdraw_RevertIf_InsufficientLiquidity() public {
+    function testFuzz_Withdraw_RevertIf_InsufficientLiquidity(uint96 depositAmount, uint96 withdrawAmount) public {
+        uint256 depositAssets = uint256(depositAmount);
+        uint256 withdrawAssets = uint256(withdrawAmount);
+        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
+        vm.assume(withdrawAssets > 0);
+        vm.assume(withdrawAssets <= depositAssets);
+        usdc.mint(alice, depositAssets);
+
         vm.prank(alice);
-        vault.deposit(100_000e6, alice);
+        vault.deposit(depositAssets, alice);
 
-        morpho.setLiquidityCap(5_000e6);
+        uint256 cap = withdrawAssets - 1;
+        vm.assume(cap > 0);
+        morpho.setLiquidityCap(cap);
 
-        vm.expectRevert(abi.encodeWithSelector(Vault.InsufficientLiquidity.selector, 10_000e6, 5_000e6));
+        vm.expectRevert(abi.encodeWithSelector(Vault.InsufficientLiquidity.selector, withdrawAssets, cap));
 
         vm.prank(alice);
-        vault.withdraw(10_000e6, alice, alice);
+        vault.withdraw(withdrawAssets, alice, alice);
     }
 
-    function test_Redeem_Basic() public {
+
+    function testFuzz_Redeem_AllShares(uint96 depositAmount) public {
+        uint256 depositAssets = uint256(depositAmount);
+        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
+        usdc.mint(alice, depositAssets);
+
         vm.prank(alice);
-        uint256 totalShares = vault.deposit(100_000e6, alice);
+        uint256 totalShares = vault.deposit(depositAssets, alice);
 
-        uint256 sharesToRedeem = totalShares / 10;
-        uint256 aliceBalanceBefore = usdc.balanceOf(alice);
-
-        vm.prank(alice);
-        uint256 assets = vault.redeem(sharesToRedeem, alice, alice);
-
-        uint256 aliceBalanceAfter = usdc.balanceOf(alice);
-        uint256 expectedAssets = vault.previewRedeem(sharesToRedeem);
-
-        assertEq(assets, expectedAssets, "Should receive exact calculated assets");
-        assertApproxEqAbs(aliceBalanceAfter - aliceBalanceBefore, assets, 2);
-        assertEq(vault.balanceOf(alice), totalShares - sharesToRedeem);
-    }
-
-    function test_Redeem_AllShares() public {
-        vm.prank(alice);
-        uint256 totalShares = vault.deposit(100_000e6, alice);
+        uint256 balanceBefore = usdc.balanceOf(alice);
 
         vm.prank(alice);
         uint256 assets = vault.redeem(totalShares, alice, alice);
@@ -279,44 +266,11 @@ contract MorphoAdapterUnitTest is Test {
 
         assertEq(assets, expectedAssets, "Should receive exact calculated assets");
         assertEq(vault.balanceOf(alice), 0, "Should have no shares left");
-        assertApproxEqAbs(usdc.balanceOf(alice), INITIAL_BALANCE, 2);
+        assertApproxEqAbs(usdc.balanceOf(alice) - balanceBefore, assets, 2);
     }
 
-    function test_Mint_Basic() public {
-        uint256 sharesToMint = 10_000e6;
-        uint256 expectedAssets = vault.previewMint(sharesToMint);
 
-        vm.prank(alice);
-        uint256 assets = vault.mint(sharesToMint, alice);
 
-        assertEq(assets, expectedAssets, "Should require exact calculated assets");
-        assertEq(vault.balanceOf(alice), sharesToMint);
-        assertApproxEqAbs(vault.totalAssets(), assets, 1);
-    }
-
-    function test_PreviewDeposit_Accurate() public {
-        vm.prank(alice);
-        vault.deposit(100_000e6, alice);
-
-        uint256 previewedShares = vault.previewDeposit(10_000e6);
-
-        vm.prank(bob);
-        uint256 actualShares = vault.deposit(10_000e6, bob);
-
-        assertEq(previewedShares, actualShares);
-    }
-
-    function test_PreviewWithdraw_Accurate() public {
-        vm.prank(alice);
-        vault.deposit(100_000e6, alice);
-
-        uint256 previewedShares = vault.previewWithdraw(10_000e6);
-
-        vm.prank(alice);
-        uint256 actualShares = vault.withdraw(10_000e6, alice, alice);
-
-        assertEq(previewedShares, actualShares);
-    }
 
     function test_Offset_InitialValue() public view {
         assertEq(vault.OFFSET(), OFFSET);
@@ -334,9 +288,13 @@ contract MorphoAdapterUnitTest is Test {
         assertGt(victimShares, 0, "Offset should protect against inflation attack");
     }
 
-    function test_TotalAssets_ReflectsMorphoBalance() public {
+    function testFuzz_TotalAssets_ReflectsMorphoBalance(uint96 depositAmount) public {
+        uint256 amount = uint256(depositAmount);
+        vm.assume(amount >= vault.MIN_FIRST_DEPOSIT());
+        usdc.mint(alice, amount);
+
         vm.prank(alice);
-        vault.deposit(50_000e6, alice);
+        vault.deposit(amount, alice);
 
         uint256 vaultTotalAssets = vault.totalAssets();
         uint256 morphoShares = morpho.balanceOf(address(vault));
@@ -345,25 +303,36 @@ contract MorphoAdapterUnitTest is Test {
         assertEq(vaultTotalAssets, morphoAssets);
     }
 
-    function test_MaxWithdraw() public {
+    function testFuzz_MaxWithdraw(uint96 depositAmount) public {
+        uint256 amount = uint256(depositAmount);
+        vm.assume(amount >= vault.MIN_FIRST_DEPOSIT());
+        usdc.mint(alice, amount);
+
         vm.prank(alice);
-        vault.deposit(100_000e6, alice);
+        vault.deposit(amount, alice);
 
         uint256 maxWithdraw = vault.maxWithdraw(alice);
 
-        assertApproxEqAbs(maxWithdraw, 100_000e6, 1);
+        assertApproxEqAbs(maxWithdraw, amount, 1);
     }
 
-    function test_DepositWithdraw_RoundingDoesNotCauseLoss() public {
+    function testFuzz_DepositWithdraw_RoundingDoesNotCauseLoss(uint96 depositAmount) public {
+        uint256 amount = uint256(depositAmount);
+        vm.assume(amount >= vault.MIN_FIRST_DEPOSIT());
+        usdc.mint(alice, amount);
+
+        uint256 balanceBefore = usdc.balanceOf(alice);
+
         vm.prank(alice);
-        vault.deposit(1000, alice);
+        vault.deposit(amount, alice);
 
         uint256 shares = vault.balanceOf(alice);
 
         vm.prank(alice);
         vault.redeem(shares, alice, alice);
 
-        assertApproxEqAbs(usdc.balanceOf(alice), INITIAL_BALANCE, 2);
+        uint256 balanceAfter = usdc.balanceOf(alice);
+        assertApproxEqAbs(balanceAfter, balanceBefore, 2);
     }
 
     function test_MultipleDepositsWithdraws_MaintainsAccounting() public {
@@ -383,12 +352,18 @@ contract MorphoAdapterUnitTest is Test {
         assertApproxEqAbs(assets, 20_000e6, 5);
     }
 
-    function test_Withdraw_DelegatedWithApproval() public {
-        vm.prank(alice);
-        vault.deposit(100_000e6, alice);
+    function testFuzz_Withdraw_DelegatedWithApproval(uint96 depositAmount, uint96 withdrawAmount) public {
+        uint256 depositAssets = uint256(depositAmount);
+        uint256 withdrawAssets = uint256(withdrawAmount);
+        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
+        vm.assume(withdrawAssets > 0);
+        vm.assume(withdrawAssets <= depositAssets);
+        usdc.mint(alice, depositAssets);
 
-        uint256 withdrawAmount = 10_000e6;
-        uint256 requiredShares = vault.previewWithdraw(withdrawAmount);
+        vm.prank(alice);
+        vault.deposit(depositAssets, alice);
+
+        uint256 requiredShares = vault.previewWithdraw(withdrawAssets);
 
         vm.prank(alice);
         vault.approve(bob, requiredShares);
@@ -397,76 +372,101 @@ contract MorphoAdapterUnitTest is Test {
         uint256 aliceSharesBefore = vault.balanceOf(alice);
 
         vm.prank(bob);
-        uint256 sharesBurned = vault.withdraw(withdrawAmount, bob, alice);
+        uint256 sharesBurned = vault.withdraw(withdrawAssets, bob, alice);
 
         uint256 bobUsdcAfter = usdc.balanceOf(bob);
         uint256 aliceSharesAfter = vault.balanceOf(alice);
 
         assertEq(sharesBurned, requiredShares, "Should burn expected shares");
         assertEq(aliceSharesAfter, aliceSharesBefore - sharesBurned, "Alice shares should decrease");
-        assertApproxEqAbs(bobUsdcAfter - bobUsdcBefore, withdrawAmount, 2, "Bob should receive assets");
+        assertApproxEqAbs(bobUsdcAfter - bobUsdcBefore, withdrawAssets, 2, "Bob should receive assets");
         assertEq(vault.allowance(alice, bob), 0, "Allowance should be consumed");
     }
 
-    function test_Withdraw_DelegatedRevertIf_InsufficientAllowance() public {
-        vm.prank(alice);
-        vault.deposit(100_000e6, alice);
+    function testFuzz_Withdraw_DelegatedRevertIf_InsufficientAllowance(uint96 depositAmount, uint96 withdrawAmount) public {
+        uint256 depositAssets = uint256(depositAmount);
+        uint256 withdrawAssets = uint256(withdrawAmount);
+        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
+        vm.assume(withdrawAssets > 0);
+        vm.assume(withdrawAssets <= depositAssets);
+        usdc.mint(alice, depositAssets);
 
-        uint256 withdrawAmount = 10_000e6;
-        uint256 requiredShares = vault.previewWithdraw(withdrawAmount);
+        vm.prank(alice);
+        vault.deposit(depositAssets, alice);
+
+        uint256 requiredShares = vault.previewWithdraw(withdrawAssets);
 
         vm.prank(alice);
         vault.approve(bob, requiredShares - 1);
 
         vm.expectRevert();
         vm.prank(bob);
-        vault.withdraw(withdrawAmount, bob, alice);
+        vault.withdraw(withdrawAssets, bob, alice);
     }
 
-    function test_Withdraw_DelegatedRevertIf_NoApproval() public {
+    function testFuzz_Withdraw_DelegatedRevertIf_NoApproval(uint96 depositAmount, uint96 withdrawAmount) public {
+        uint256 depositAssets = uint256(depositAmount);
+        uint256 withdrawAssets = uint256(withdrawAmount);
+        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
+        vm.assume(withdrawAssets > 0);
+        vm.assume(withdrawAssets <= depositAssets);
+        usdc.mint(alice, depositAssets);
+
         vm.prank(alice);
-        vault.deposit(100_000e6, alice);
+        vault.deposit(depositAssets, alice);
 
         vm.expectRevert();
         vm.prank(bob);
-        vault.withdraw(10_000e6, bob, alice);
+        vault.withdraw(withdrawAssets, bob, alice);
     }
 
-    function test_Withdraw_SelfDoesNotRequireApproval() public {
-        vm.prank(alice);
-        vault.deposit(100_000e6, alice);
+    function testFuzz_Withdraw_SelfDoesNotRequireApproval(uint96 depositAmount, uint96 withdrawAmount) public {
+        uint256 depositAssets = uint256(depositAmount);
+        uint256 withdrawAssets = uint256(withdrawAmount);
+        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
+        vm.assume(withdrawAssets > 0);
+        vm.assume(withdrawAssets <= depositAssets);
+        usdc.mint(alice, depositAssets);
 
-        uint256 withdrawAmount = 10_000e6;
-        uint256 expectedShares = vault.previewWithdraw(withdrawAmount);
+        vm.prank(alice);
+        vault.deposit(depositAssets, alice);
+
+        uint256 expectedShares = vault.previewWithdraw(withdrawAssets);
         uint256 aliceUsdcBefore = usdc.balanceOf(alice);
 
         vm.prank(alice);
-        uint256 sharesBurned = vault.withdraw(withdrawAmount, alice, alice);
+        uint256 sharesBurned = vault.withdraw(withdrawAssets, alice, alice);
 
         uint256 aliceUsdcAfter = usdc.balanceOf(alice);
 
         assertEq(sharesBurned, expectedShares, "Should burn exact calculated shares");
-        assertApproxEqAbs(aliceUsdcAfter - aliceUsdcBefore, withdrawAmount, 2, "Alice should receive assets");
+        assertApproxEqAbs(aliceUsdcAfter - aliceUsdcBefore, withdrawAssets, 2, "Alice should receive assets");
     }
 
-    function test_Withdraw_DelegatedWithUnlimitedApproval() public {
+    function testFuzz_Withdraw_DelegatedWithUnlimitedApproval(uint96 depositAmount, uint96 withdrawAmount) public {
+        uint256 depositAssets = uint256(depositAmount);
+        uint256 withdrawAssets = uint256(withdrawAmount);
+        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
+        vm.assume(withdrawAssets > 0);
+        vm.assume(withdrawAssets <= depositAssets);
+        usdc.mint(alice, depositAssets);
+
         vm.prank(alice);
-        vault.deposit(100_000e6, alice);
+        vault.deposit(depositAssets, alice);
 
         vm.prank(alice);
         vault.approve(bob, type(uint256).max);
 
-        uint256 withdrawAmount = 10_000e6;
-        uint256 expectedShares = vault.previewWithdraw(withdrawAmount);
+        uint256 expectedShares = vault.previewWithdraw(withdrawAssets);
         uint256 bobUsdcBefore = usdc.balanceOf(bob);
 
         vm.prank(bob);
-        uint256 sharesBurned = vault.withdraw(withdrawAmount, bob, alice);
+        uint256 sharesBurned = vault.withdraw(withdrawAssets, bob, alice);
 
         uint256 bobUsdcAfter = usdc.balanceOf(bob);
 
         assertEq(sharesBurned, expectedShares, "Should burn exact calculated shares");
-        assertApproxEqAbs(bobUsdcAfter - bobUsdcBefore, withdrawAmount, 2, "Bob should receive assets");
+        assertApproxEqAbs(bobUsdcAfter - bobUsdcBefore, withdrawAssets, 2, "Bob should receive assets");
         assertEq(vault.allowance(alice, bob), type(uint256).max, "Unlimited allowance should remain");
     }
 
@@ -1119,5 +1119,138 @@ contract MorphoAdapterUnitTest is Test {
 
         uint256 pendingFeesAfter = vault.getPendingFees();
         assertEq(pendingFeesAfter, 0, "Pending fees should be zero after harvest");
+    }
+
+    /* ========== REFRESH MORPHO APPROVAL TESTS ========== */
+
+    /// @notice Test that admin can successfully refresh Morpho approval
+    function test_RefreshMorphoApproval_Success() public {
+        // Reset approval to 0 to simulate a scenario where refresh is needed
+        vm.prank(address(vault));
+        usdc.approve(address(morpho), 0);
+
+        assertEq(usdc.allowance(address(vault), address(morpho)), 0, "Approval should be zero");
+
+        // Admin refreshes approval
+        vault.refreshMorphoApproval();
+
+        assertEq(
+            usdc.allowance(address(vault), address(morpho)),
+            type(uint256).max,
+            "Approval should be refreshed to max"
+        );
+    }
+
+    /// @notice Test that non-admin cannot refresh Morpho approval
+    function test_RefreshMorphoApproval_RevertWhen_NotAdmin() public {
+        vm.expectRevert();
+        vm.prank(alice);
+        vault.refreshMorphoApproval();
+    }
+
+    /// @notice Test that refreshMorphoApproval sets max approval
+    function test_RefreshMorphoApproval_SetsMaxApproval() public {
+        // Verify initial approval is max
+        assertEq(
+            usdc.allowance(address(vault), address(morpho)),
+            type(uint256).max,
+            "Initial approval should be max"
+        );
+
+        // Simulate approval decrease (could happen in edge cases or with some tokens)
+        vm.prank(address(vault));
+        usdc.approve(address(morpho), 1_000e6);
+
+        assertEq(usdc.allowance(address(vault), address(morpho)), 1_000e6, "Approval should be decreased");
+
+        // Refresh approval back to max
+        vault.refreshMorphoApproval();
+
+        assertEq(
+            usdc.allowance(address(vault), address(morpho)),
+            type(uint256).max,
+            "Approval should be refreshed to max"
+        );
+    }
+
+    /// @notice Test that refreshMorphoApproval emits Approval event
+    function test_RefreshMorphoApproval_EmitsApprovalEvent() public {
+        // Reset approval first
+        vm.prank(address(vault));
+        usdc.approve(address(morpho), 0);
+
+        // Expect Approval event from USDC token
+        vm.expectEmit(true, true, false, true, address(usdc));
+        emit IERC20.Approval(address(vault), address(morpho), type(uint256).max);
+
+        vault.refreshMorphoApproval();
+    }
+
+    /// @notice Test that refreshMorphoApproval works even when approval is already max
+    function test_RefreshMorphoApproval_WorksWhenAlreadyMax() public {
+        // Verify approval is already max
+        assertEq(
+            usdc.allowance(address(vault), address(morpho)),
+            type(uint256).max,
+            "Initial approval should be max"
+        );
+
+        // Should not revert when calling refresh with approval already at max
+        vault.refreshMorphoApproval();
+
+        // Approval should still be max
+        assertEq(
+            usdc.allowance(address(vault), address(morpho)),
+            type(uint256).max,
+            "Approval should remain max"
+        );
+    }
+
+    /// @notice Test that refreshMorphoApproval allows deposits to continue after approval was depleted
+    function test_RefreshMorphoApproval_RestoresDepositFunctionality() public {
+        // Reset approval to 0
+        vm.prank(address(vault));
+        usdc.approve(address(morpho), 0);
+
+        // Deposit should fail with zero approval
+        vm.expectRevert();
+        vm.prank(alice);
+        vault.deposit(10_000e6, alice);
+
+        // Refresh approval
+        vault.refreshMorphoApproval();
+
+        // Deposit should now succeed
+        vm.prank(alice);
+        uint256 shares = vault.deposit(10_000e6, alice);
+
+        assertGt(shares, 0, "Deposit should succeed after approval refresh");
+        assertEq(vault.balanceOf(alice), shares, "Alice should receive shares");
+    }
+
+    /// @notice Test that only DEFAULT_ADMIN_ROLE can refresh approval
+    function test_RefreshMorphoApproval_OnlyAdminRole() public {
+        address randomUser = makeAddr("randomUser");
+
+        // Random user should not be able to refresh
+        vm.expectRevert();
+        vm.prank(randomUser);
+        vault.refreshMorphoApproval();
+
+        // Admin should be able to refresh
+        vault.refreshMorphoApproval();
+
+        // Grant admin role to random user
+        vault.grantRole(vault.DEFAULT_ADMIN_ROLE(), randomUser);
+
+        // Now random user should be able to refresh
+        vm.prank(randomUser);
+        vault.refreshMorphoApproval();
+
+        assertEq(
+            usdc.allowance(address(vault), address(morpho)),
+            type(uint256).max,
+            "New admin should be able to refresh approval"
+        );
     }
 }

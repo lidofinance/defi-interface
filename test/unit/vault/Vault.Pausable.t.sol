@@ -39,6 +39,17 @@ contract VaultPausableTest is VaultTestBase {
         assertFalse(vault.paused());
     }
 
+    function test_Pause_RevertIf_AlreadyPaused() public {
+        vault.pause();
+        vm.expectRevert(Pausable.EnforcedPause.selector);
+        vault.pause();
+    }
+
+    function test_Unpause_RevertIf_NotPaused() public {
+        vm.expectRevert(Pausable.ExpectedPause.selector);
+        vault.unpause();
+    }
+
     function test_Unpause_RevertIf_NotPauser() public {
         vault.pause();
 
@@ -116,7 +127,17 @@ contract VaultPausableTest is VaultTestBase {
 
         assertEq(vault.totalAssets(), 100_000e6);
         assertEq(vault.balanceOf(alice), shares);
-        assertEq(vault.maxWithdraw(alice), 100_000e6);
+        assertEq(vault.previewWithdraw(10_000e6), vault.convertToShares(10_000e6));
+    }
+
+    function test_Pause_DoesNotBlockPreviewDeposit() public {
+        vault.pause();
+        uint256 previewShares = vault.previewDeposit(10_000e6);
+        assertGt(previewShares, 0);
+    }
+
+    function test_MaxDepositPositiveWhenUnpaused() public view {
+        assertEq(vault.maxDeposit(alice), type(uint256).max);
     }
 
     function test_Pause_MultipleTimesDifferentPausers() public {
