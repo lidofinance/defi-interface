@@ -11,7 +11,7 @@ contract MockMetaMorpho is ERC4626 {
 
     uint256 public yieldRate = 1000;
     uint256 public liquidityCap = type(uint256).max;
-    uint8 private immutable _offset;
+    uint8 private immutable OFFSET;
     bool public forceZeroDeposit;
 
     event YieldAccrued(uint256 amount);
@@ -20,7 +20,7 @@ contract MockMetaMorpho is ERC4626 {
         ERC4626(asset_)
         ERC20(name_, symbol_)
     {
-        _offset = offset_;
+        OFFSET = offset_;
     }
 
     function setLiquidityCap(uint256 cap) external {
@@ -54,6 +54,6 @@ contract MockMetaMorpho is ERC4626 {
     }
 
     function _decimalsOffset() internal view override returns (uint8) {
-        return _offset;
+        return OFFSET;
     }
 }

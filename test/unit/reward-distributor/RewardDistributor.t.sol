@@ -28,11 +28,7 @@ contract RewardDistributorTest is Test {
         vault = new MockVault(address(asset), treasury, REWARD_FEE, OFFSET, "Mock Vault", "mvMock");
     }
 
-    function _defaultRecipients()
-        internal
-        view
-        returns (address[] memory recs, uint256[] memory bps)
-    {
+    function _defaultRecipients() internal view returns (address[] memory recs, uint256[] memory bps) {
         recs = new address[](2);
         recs[0] = recipientA;
         recs[1] = recipientB;
@@ -170,9 +166,7 @@ contract RewardDistributorTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                nonManager,
-                distributor.MANAGER_ROLE()
+                IAccessControl.AccessControlUnauthorizedAccount.selector, nonManager, distributor.MANAGER_ROLE()
             )
         );
         vm.prank(nonManager);
@@ -267,9 +261,7 @@ contract RewardDistributorTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                nonManager,
-                distributor.MANAGER_ROLE()
+                IAccessControl.AccessControlUnauthorizedAccount.selector, nonManager, distributor.MANAGER_ROLE()
             )
         );
         vm.prank(nonManager);
@@ -294,7 +286,10 @@ contract RewardDistributorTest is Test {
 
     /* ========== HELPERS ========== */
 
-    function _depositSharesForDistributor(RewardDistributor distributor, uint256 assetsAmount) private returns (uint256) {
+    function _depositSharesForDistributor(RewardDistributor distributor, uint256 assetsAmount)
+        private
+        returns (uint256)
+    {
         asset.mint(address(this), assetsAmount);
         asset.approve(address(vault), assetsAmount);
         uint256 shares = vault.deposit(assetsAmount, address(distributor));

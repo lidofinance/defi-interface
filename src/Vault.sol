@@ -38,7 +38,6 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
     /* ========== EVENTS ========== */
 
     event Deposited(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
-
     event Withdrawn(
         address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
     );

@@ -46,14 +46,8 @@ contract VaultConstructorTest is Test {
     function test_Constructor_SetsCorrectParameters() public {
         asset = new MockERC20("USD Coin", "USDC", 6);
 
-        MockVault vault = new MockVault(
-            address(asset),
-            treasury,
-            VALID_REWARD_FEE,
-            VALID_OFFSET,
-            VAULT_NAME,
-            VAULT_SYMBOL
-        );
+        MockVault vault =
+            new MockVault(address(asset), treasury, VALID_REWARD_FEE, VALID_OFFSET, VAULT_NAME, VAULT_SYMBOL);
 
         // Check immutable parameters
         assertEq(address(vault.asset()), address(asset), "Asset not set correctly");
@@ -72,14 +66,8 @@ contract VaultConstructorTest is Test {
     function test_Constructor_GrantsAdminRole() public {
         asset = new MockERC20("USD Coin", "USDC", 6);
 
-        MockVault vault = new MockVault(
-            address(asset),
-            treasury,
-            VALID_REWARD_FEE,
-            VALID_OFFSET,
-            VAULT_NAME,
-            VAULT_SYMBOL
-        );
+        MockVault vault =
+            new MockVault(address(asset), treasury, VALID_REWARD_FEE, VALID_OFFSET, VAULT_NAME, VAULT_SYMBOL);
 
         bytes32 adminRole = vault.DEFAULT_ADMIN_ROLE();
         assertTrue(vault.hasRole(adminRole, admin), "Admin role not granted");
@@ -94,14 +82,8 @@ contract VaultConstructorTest is Test {
     function test_Constructor_SetsCorrectDecimals() public {
         asset = new MockERC20("USD Coin", "USDC", 6);
 
-        MockVault vault = new MockVault(
-            address(asset),
-            treasury,
-            VALID_REWARD_FEE,
-            VALID_OFFSET,
-            VAULT_NAME,
-            VAULT_SYMBOL
-        );
+        MockVault vault =
+            new MockVault(address(asset), treasury, VALID_REWARD_FEE, VALID_OFFSET, VAULT_NAME, VAULT_SYMBOL);
 
         // Vault decimals should equal asset decimals (not asset decimals + offset)
         // Note: ERC4626 standard dictates vault decimals = asset decimals
@@ -130,14 +112,7 @@ contract VaultConstructorTest is Test {
         asset = new MockERC20("USD Coin", "USDC", 6);
         uint8 maxOffset = 23; // MAX_OFFSET = 23
 
-        MockVault vault = new MockVault(
-            address(asset),
-            treasury,
-            VALID_REWARD_FEE,
-            maxOffset,
-            VAULT_NAME,
-            VAULT_SYMBOL
-        );
+        MockVault vault = new MockVault(address(asset), treasury, VALID_REWARD_FEE, maxOffset, VAULT_NAME, VAULT_SYMBOL);
 
         assertEq(vault.OFFSET(), maxOffset, "Max offset not set correctly");
         assertTrue(address(vault) != address(0), "Vault creation failed with max offset");
@@ -165,14 +140,7 @@ contract VaultConstructorTest is Test {
         asset = new MockERC20("USD Coin", "USDC", 6);
         uint16 maxRewardFee = 2000; // MAX_REWARD_FEE_BASIS_POINTS = 2000 (20%)
 
-        MockVault vault = new MockVault(
-            address(asset),
-            treasury,
-            maxRewardFee,
-            VALID_OFFSET,
-            VAULT_NAME,
-            VAULT_SYMBOL
-        );
+        MockVault vault = new MockVault(address(asset), treasury, maxRewardFee, VALID_OFFSET, VAULT_NAME, VAULT_SYMBOL);
 
         assertEq(vault.rewardFee(), maxRewardFee, "Max reward fee not set correctly");
         assertTrue(address(vault) != address(0), "Vault creation failed with max reward fee");
@@ -217,14 +185,7 @@ contract VaultConstructorTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(Vault.OffsetTooHigh.selector, invalidOffset));
 
-        new MockVault(
-            address(asset),
-            treasury,
-            VALID_REWARD_FEE,
-            invalidOffset,
-            VAULT_NAME,
-            VAULT_SYMBOL
-        );
+        new MockVault(address(asset), treasury, VALID_REWARD_FEE, invalidOffset, VAULT_NAME, VAULT_SYMBOL);
     }
 
     /// @notice Test that constructor reverts when reward fee exceeds MAX_REWARD_FEE
@@ -234,14 +195,7 @@ contract VaultConstructorTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(Vault.InvalidFee.selector, invalidRewardFee));
 
-        new MockVault(
-            address(asset),
-            treasury,
-            invalidRewardFee,
-            VALID_OFFSET,
-            VAULT_NAME,
-            VAULT_SYMBOL
-        );
+        new MockVault(address(asset), treasury, invalidRewardFee, VALID_OFFSET, VAULT_NAME, VAULT_SYMBOL);
     }
 
     /* ========== FUZZ TESTS ========== */
@@ -253,14 +207,7 @@ contract VaultConstructorTest is Test {
 
         asset = new MockERC20("USD Coin", "USDC", 6);
 
-        MockVault vault = new MockVault(
-            address(asset),
-            treasury,
-            rewardFee,
-            VALID_OFFSET,
-            VAULT_NAME,
-            VAULT_SYMBOL
-        );
+        MockVault vault = new MockVault(address(asset), treasury, rewardFee, VALID_OFFSET, VAULT_NAME, VAULT_SYMBOL);
 
         assertEq(vault.rewardFee(), rewardFee, "Fuzzed reward fee not set correctly");
     }
@@ -272,14 +219,7 @@ contract VaultConstructorTest is Test {
 
         asset = new MockERC20("USD Coin", "USDC", 6);
 
-        MockVault vault = new MockVault(
-            address(asset),
-            treasury,
-            VALID_REWARD_FEE,
-            offset,
-            VAULT_NAME,
-            VAULT_SYMBOL
-        );
+        MockVault vault = new MockVault(address(asset), treasury, VALID_REWARD_FEE, offset, VAULT_NAME, VAULT_SYMBOL);
 
         assertEq(vault.OFFSET(), offset, "Fuzzed offset not set correctly");
     }
@@ -293,14 +233,7 @@ contract VaultConstructorTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(Vault.InvalidFee.selector, rewardFee));
 
-        new MockVault(
-            address(asset),
-            treasury,
-            rewardFee,
-            VALID_OFFSET,
-            VAULT_NAME,
-            VAULT_SYMBOL
-        );
+        new MockVault(address(asset), treasury, rewardFee, VALID_OFFSET, VAULT_NAME, VAULT_SYMBOL);
     }
 
     /// @notice Fuzz test: constructor should revert for invalid offset (> 23)
@@ -312,14 +245,7 @@ contract VaultConstructorTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(Vault.OffsetTooHigh.selector, offset));
 
-        new MockVault(
-            address(asset),
-            treasury,
-            VALID_REWARD_FEE,
-            offset,
-            VAULT_NAME,
-            VAULT_SYMBOL
-        );
+        new MockVault(address(asset), treasury, VALID_REWARD_FEE, offset, VAULT_NAME, VAULT_SYMBOL);
     }
 
     /* ========== MORPHO ADAPTER CONSTRUCTOR TESTS ========== */
