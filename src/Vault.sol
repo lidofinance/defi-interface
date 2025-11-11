@@ -213,7 +213,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
 
         _harvestFees();
 
-        sharesMinted = previewDeposit(assetsToDeposit);
+        sharesMinted = _convertToShares(assetsToDeposit, Math.Rounding.Floor);
         if (sharesMinted == 0) revert ZeroAmount();
 
         SafeERC20.safeTransferFrom(IERC20(asset()), msg.sender, address(this), assetsToDeposit);
@@ -249,7 +249,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
 
         _harvestFees();
 
-        assetsRequired = previewMint(sharesToMint);
+        assetsRequired = _convertToAssets(sharesToMint, Math.Rounding.Ceil);
         if (assetsRequired == 0) revert ZeroAmount();
         if (totalSupply() == 0 && assetsRequired < MIN_FIRST_DEPOSIT) {
             revert FirstDepositTooSmall(MIN_FIRST_DEPOSIT, assetsRequired);
@@ -288,7 +288,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
 
         _harvestFees();
 
-        sharesBurned = previewWithdraw(assetsToWithdraw);
+        sharesBurned = _convertToShares(assetsToWithdraw, Math.Rounding.Ceil);
         if (sharesBurned == 0) revert ZeroAmount();
         if (sharesBurned > balanceOf(shareOwner)) {
             revert InsufficientShares(sharesBurned, balanceOf(shareOwner));
@@ -338,7 +338,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
             revert InsufficientShares(sharesToRedeem, balanceOf(shareOwner));
         }
 
-        uint256 assetsToWithdraw = convertToAssets(sharesToRedeem);
+        uint256 assetsToWithdraw = _convertToAssets(sharesToRedeem, Math.Rounding.Floor);
 
         assetsWithdrawn = _withdrawFromProtocol(assetsToWithdraw, assetReceiver);
 
@@ -566,10 +566,14 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
             return _convertToShares(assets, Math.Rounding.Ceil);
         }
 
+        // Simulate fee harvest to account for share dilution
         uint256 feeShares = _calculateFeeShares(currentTotal, supply);
         uint256 adjustedSupply = supply + feeShares;
 
-        shares = assets.mulDiv(adjustedSupply, currentTotal, Math.Rounding.Ceil);
+        // Use the same formula as OpenZeppelin's _convertToShares with OFFSET and +1
+        // Formula: assets * (supply + 10^OFFSET) / (totalAssets + 1)
+        // This matches the conversion used in withdraw() after fees are harvested
+        shares = assets.mulDiv(adjustedSupply + 10 ** OFFSET, currentTotal + 1, Math.Rounding.Ceil);
     }
 
     /**

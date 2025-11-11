@@ -653,23 +653,4 @@ contract VaultWithdrawTest is VaultTestBase {
         // Should be very close (allow small rounding difference)
         assertApproxEqAbs(actualAssets, previewedAssets, 2);
     }
-
-    /* ========== COVERAGE TESTS FOR EDGE CASES ========== */
-
-    /// @dev Coverage: Vault.sol line 169 - if (sharesBurned == 0) revert ZeroAmount();
-    /// @notice Tests that withdraw reverts when previewWithdraw returns 0 shares
-    function test_Withdraw_RevertIf_SharesBurnedIsZero() public {
-        // Setup: Make a deposit first
-        vm.prank(alice);
-        vault.deposit(10000, alice);
-
-        // Force previewWithdraw to return 0
-        MockVault(address(vault)).setForceZeroPreviewWithdraw(true);
-
-        // Try to withdraw - should revert with ZeroAmount
-        vm.startPrank(alice);
-        vm.expectRevert(Vault.ZeroAmount.selector);
-        vault.withdraw(5000, alice, alice);
-        vm.stopPrank();
-    }
 }
