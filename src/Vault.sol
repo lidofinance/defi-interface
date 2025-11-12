@@ -265,20 +265,18 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
 
         assetsRequired = _convertToAssets(sharesToMint, Math.Rounding.Ceil);
         if (assetsRequired == 0) revert ZeroAmount();
+        if (totalSupply() == 0 && assetsRequired < MIN_FIRST_DEPOSIT) {
+            revert FirstDepositTooSmall(MIN_FIRST_DEPOSIT, assetsRequired);
+        }
 
         uint256 maxAssets = maxDeposit(shareReceiver);
         if (assetsRequired > maxAssets) {
             revert ExceedsMaxDeposit(assetsRequired, maxAssets);
         }
 
-        if (totalSupply() == 0 && assetsRequired < MIN_FIRST_DEPOSIT) {
-            revert FirstDepositTooSmall(MIN_FIRST_DEPOSIT, assetsRequired);
-        }
-
         SafeERC20.safeTransferFrom(IERC20(asset()), msg.sender, address(this), assetsRequired);
 
         uint256 protocolSharesReceived = _depositToProtocol(assetsRequired);
-
         if (protocolSharesReceived == 0) revert ZeroAmount();
 
         _mint(shareReceiver, sharesToMint);
