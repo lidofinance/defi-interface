@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import "forge-std/Test.sol";
-
+import {TestConfig} from "test/utils/TestConfig.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 import {RewardDistributor} from "src/RewardDistributor.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
 import {MockVault} from "test/mocks/MockVault.sol";
 
-contract RewardDistributorTest is Test {
+contract RewardDistributorTest is TestConfig {
     MockERC20 internal asset;
     MockVault internal vault;
 
@@ -24,7 +24,7 @@ contract RewardDistributorTest is Test {
     uint256 internal constant MAX_BPS = 10_000;
 
     function setUp() public {
-        asset = new MockERC20("Mock USD", "mUSD", 6);
+        asset = new MockERC20("Mock USD", "mUSD", _assetDecimals());
         vault = new MockVault(address(asset), treasury, REWARD_FEE, OFFSET, "Mock Vault", "mvMock");
     }
 

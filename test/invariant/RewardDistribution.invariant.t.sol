@@ -39,7 +39,8 @@ pragma solidity 0.8.30;
  *    - Ensures reward fee is always within protocol limits
  *    - Validates fee configuration integrity
  */
-import "forge-std/Test.sol";
+import {TestConfig} from "test/utils/TestConfig.sol";
+import "forge-std/console.sol";
 import {MorphoAdapter} from "src/adapters/Morpho.sol";
 import {MockMetaMorpho} from "test/mocks/MockMetaMorpho.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
@@ -47,7 +48,7 @@ import {RewardDistributor} from "src/RewardDistributor.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {RewardDistributionHandler} from "./handlers/RewardDistributionHandler.sol";
 
-contract RewardDistributionInvariantTest is Test {
+contract RewardDistributionInvariantTest is TestConfig {
     MorphoAdapter public vault;
     MockMetaMorpho public morpho;
     MockERC20 public usdc;
@@ -63,7 +64,7 @@ contract RewardDistributionInvariantTest is Test {
     uint8 constant OFFSET = 6;
 
     function setUp() public {
-        usdc = new MockERC20("USD Coin", "USDC", 6);
+        usdc = new MockERC20("USD Coin", "USDC", _assetDecimals());
 
         morpho = new MockMetaMorpho(IERC20(address(usdc)), "Mock Morpho USDC", "mUSDC", OFFSET);
 

@@ -29,7 +29,12 @@ jobs:
           forge build --sizes
         id: build
 
-      - name: Run Forge tests
+      - name: Run Forge tests (decimals 6)
         run: |
           forge test -vvv
-        id: test
+        id: test-assets-6
+
+      - name: Run Forge tests (decimals 18)
+        run: |
+          ASSET_DECIMALS=18 forge test -vvv
+        id: test-assets-18

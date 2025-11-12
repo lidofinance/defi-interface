@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import {Vm} from "forge-std/Vm.sol";
 import {Vault} from "src/Vault.sol";
 import "./MorphoAdapterTestBase.sol";
 

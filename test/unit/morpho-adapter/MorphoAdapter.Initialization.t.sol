@@ -12,7 +12,7 @@ contract MorphoAdapterInitializationTest is MorphoAdapterTestBase {
         assertEq(vault.rewardFee(), REWARD_FEE);
         assertEq(vault.name(), "Morpho USDC Vault");
         assertEq(vault.symbol(), "mvUSDC");
-        assertEq(vault.decimals(), 6);
+        assertEq(vault.decimals(), assetDecimals);
     }
 
     function test_InitialState() public view {

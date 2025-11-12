@@ -20,7 +20,8 @@ pragma solidity 0.8.30;
  *    - invariant_VaultHasAssetsWhenHasShares()
  *    - If totalSupply > 0, then totalAssets > 0 (no orphan shares)
  */
-import "forge-std/Test.sol";
+import {TestConfig} from "test/utils/TestConfig.sol";
+import "forge-std/console.sol";
 import {MorphoAdapter} from "src/adapters/Morpho.sol";
 import {MockMetaMorpho} from "test/mocks/MockMetaMorpho.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
@@ -28,7 +29,7 @@ import {RewardDistributor} from "src/RewardDistributor.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {VaultHandler} from "./handlers/VaultHandler.sol";
 
-contract VaultInvariantTest is Test {
+contract VaultInvariantTest is TestConfig {
     MorphoAdapter public vault;
     MockMetaMorpho public morpho;
     MockERC20 public usdc;
@@ -44,7 +45,7 @@ contract VaultInvariantTest is Test {
     uint8 constant OFFSET = 6;
 
     function setUp() public {
-        usdc = new MockERC20("USD Coin", "USDC", 6);
+        usdc = new MockERC20("USD Coin", "USDC", _assetDecimals());
 
         morpho = new MockMetaMorpho(IERC20(address(usdc)), "Mock Morpho USDC", "mUSDC", OFFSET);
 

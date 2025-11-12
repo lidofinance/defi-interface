@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import "forge-std/Test.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {TestConfig} from "test/utils/TestConfig.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {Vault} from "src/Vault.sol";
@@ -21,7 +20,7 @@ import {MockERC20} from "test/mocks/MockERC20.sol";
  *      - Line 256: _harvestFees() with feeAmount > profit (overflow protection)
  *      - Line 325: getPendingFees() with feeAmount > profit (overflow protection)
  */
-contract VaultEdgeCasesTest is Test {
+contract VaultEdgeCasesTest is TestConfig {
     using Math for uint256;
 
     MockVault public vault;
@@ -35,7 +34,7 @@ contract VaultEdgeCasesTest is Test {
     uint256 constant MIN_FIRST_DEPOSIT = 1000;
 
     function setUp() public {
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
         vault = new MockVault(address(asset), treasury, DEFAULT_FEE, DEFAULT_OFFSET, "Test Vault", "tvUSDC");
     }
 

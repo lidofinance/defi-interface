@@ -12,7 +12,7 @@ contract VaultInitializationTest is VaultTestBase {
         assertEq(vault.rewardFee(), REWARD_FEE);
         assertEq(vault.name(), "Mock Vault");
         assertEq(vault.symbol(), "mvUSDC");
-        assertEq(vault.decimals(), 6);
+        assertEq(vault.decimals(), assetDecimals);
     }
 
     function test_InitialState() public view {

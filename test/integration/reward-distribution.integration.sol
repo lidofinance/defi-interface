@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import "forge-std/Test.sol";
-import "forge-std/console.sol";
+import {TestConfig} from "test/utils/TestConfig.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -12,7 +11,7 @@ import {MockMetaMorpho} from "test/mocks/MockMetaMorpho.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
 import {RewardDistributor} from "src/RewardDistributor.sol";
 
-contract RewardDistributionIntegrationTest is Test {
+contract RewardDistributionIntegrationTest is TestConfig {
     using Math for uint256;
 
     MorphoAdapter public vault;
@@ -33,7 +32,7 @@ contract RewardDistributionIntegrationTest is Test {
     uint8 constant OFFSET = 6;
 
     function setUp() public {
-        usdc = new MockERC20("USD Coin", "USDC", 6);
+        usdc = new MockERC20("USD Coin", "USDC", _assetDecimals());
 
         morpho = new MockMetaMorpho(IERC20(address(usdc)), "Mock Morpho USDC", "mUSDC", OFFSET);
 

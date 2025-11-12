@@ -2,6 +2,12 @@
 
 ---
 
+## Environment Overrides
+
+- All tests default to a 6-decimal mock asset. Set `ASSET_DECIMALS=18` (or any `uint8` value) before running `forge test` to rerun the full suite against an asset with the desired precision. No changes to the test selection are required—just run the command twice with the different env values.
+
+---
+
 ## Vault Tests
 
 ### Vault.Constructor.t.sol (17 tests)

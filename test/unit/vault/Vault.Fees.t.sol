@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 import "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {VaultTestBase} from "./VaultTestBase.sol";
 import {Vault} from "src/Vault.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";

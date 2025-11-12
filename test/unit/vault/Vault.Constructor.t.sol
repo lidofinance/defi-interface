@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import "forge-std/Test.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {TestConfig} from "test/utils/TestConfig.sol";
 
 import {Vault} from "src/Vault.sol";
 import {MorphoAdapter} from "src/adapters/Morpho.sol";
@@ -15,7 +13,7 @@ import {MockERC20} from "test/mocks/MockERC20.sol";
  * @notice Comprehensive tests for Vault constructor parameter validation
  * @dev Tests cover all constructor validation rules, role assignments, and parameter setup
  */
-contract VaultConstructorTest is Test {
+contract VaultConstructorTest is TestConfig {
     MockERC20 public asset;
     address public treasury = makeAddr("treasury");
     address public admin = address(this);
@@ -30,7 +28,7 @@ contract VaultConstructorTest is Test {
     /// @notice Test successful construction with all valid parameters
     function test_Constructor_ValidParameters() public {
         MockVault vault = new MockVault(
-            address(asset = new MockERC20("USD Coin", "USDC", 6)),
+            address(asset = new MockERC20("USD Coin", "USDC", _assetDecimals())),
             treasury,
             VALID_REWARD_FEE,
             VALID_OFFSET,
@@ -44,7 +42,7 @@ contract VaultConstructorTest is Test {
 
     /// @notice Test that all constructor parameters are set correctly
     function test_Constructor_SetsCorrectParameters() public {
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
 
         MockVault vault =
             new MockVault(address(asset), treasury, VALID_REWARD_FEE, VALID_OFFSET, VAULT_NAME, VAULT_SYMBOL);
@@ -64,7 +62,7 @@ contract VaultConstructorTest is Test {
 
     /// @notice Test that deployer receives DEFAULT_ADMIN_ROLE
     function test_Constructor_GrantsAdminRole() public {
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
 
         MockVault vault =
             new MockVault(address(asset), treasury, VALID_REWARD_FEE, VALID_OFFSET, VAULT_NAME, VAULT_SYMBOL);
@@ -80,7 +78,7 @@ contract VaultConstructorTest is Test {
 
     /// @notice Test that decimals are calculated correctly (asset decimals + offset)
     function test_Constructor_SetsCorrectDecimals() public {
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
 
         MockVault vault =
             new MockVault(address(asset), treasury, VALID_REWARD_FEE, VALID_OFFSET, VAULT_NAME, VAULT_SYMBOL);
@@ -92,7 +90,7 @@ contract VaultConstructorTest is Test {
 
     /// @notice Test valid construction with zero offset
     function test_Constructor_WithZeroOffset() public {
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
 
         MockVault vault = new MockVault(
             address(asset),
@@ -109,7 +107,7 @@ contract VaultConstructorTest is Test {
 
     /// @notice Test valid construction with maximum allowed offset
     function test_Constructor_WithMaxOffset() public {
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
         uint8 maxOffset = 23; // MAX_OFFSET = 23
 
         MockVault vault = new MockVault(address(asset), treasury, VALID_REWARD_FEE, maxOffset, VAULT_NAME, VAULT_SYMBOL);
@@ -120,7 +118,7 @@ contract VaultConstructorTest is Test {
 
     /// @notice Test valid construction with zero reward fee
     function test_Constructor_WithZeroRewardFee() public {
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
 
         MockVault vault = new MockVault(
             address(asset),
@@ -137,7 +135,7 @@ contract VaultConstructorTest is Test {
 
     /// @notice Test valid construction with maximum allowed reward fee
     function test_Constructor_WithMaxRewardFee() public {
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
         uint16 maxRewardFee = 2000; // MAX_REWARD_FEE_BASIS_POINTS = 2000 (20%)
 
         MockVault vault = new MockVault(address(asset), treasury, maxRewardFee, VALID_OFFSET, VAULT_NAME, VAULT_SYMBOL);
@@ -164,7 +162,7 @@ contract VaultConstructorTest is Test {
 
     /// @notice Test that constructor reverts when treasury address is zero
     function test_Constructor_RevertWhen_TreasuryIsZeroAddress() public {
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
 
         vm.expectRevert(Vault.ZeroAddress.selector);
 
@@ -180,7 +178,7 @@ contract VaultConstructorTest is Test {
 
     /// @notice Test that constructor reverts when offset exceeds MAX_OFFSET
     function test_Constructor_RevertWhen_OffsetTooHigh() public {
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
         uint8 invalidOffset = 24; // MAX_OFFSET = 23, so 24 is invalid
 
         vm.expectRevert(abi.encodeWithSelector(Vault.OffsetTooHigh.selector, invalidOffset));
@@ -190,7 +188,7 @@ contract VaultConstructorTest is Test {
 
     /// @notice Test that constructor reverts when reward fee exceeds MAX_REWARD_FEE
     function test_Constructor_RevertWhen_RewardFeeExceedsMax() public {
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
         uint16 invalidRewardFee = 2001; // MAX_REWARD_FEE_BASIS_POINTS = 2000, so 2001 is invalid
 
         vm.expectRevert(abi.encodeWithSelector(Vault.InvalidFee.selector, invalidRewardFee));
@@ -205,7 +203,7 @@ contract VaultConstructorTest is Test {
         // Bound reward fee to valid range [0, MAX_REWARD_FEE_BASIS_POINTS]
         rewardFee = uint16(bound(rewardFee, 0, 2000));
 
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
 
         MockVault vault = new MockVault(address(asset), treasury, rewardFee, VALID_OFFSET, VAULT_NAME, VAULT_SYMBOL);
 
@@ -217,7 +215,7 @@ contract VaultConstructorTest is Test {
         // Bound offset to valid range [0, MAX_OFFSET]
         offset = uint8(bound(offset, 0, 23));
 
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
 
         MockVault vault = new MockVault(address(asset), treasury, VALID_REWARD_FEE, offset, VAULT_NAME, VAULT_SYMBOL);
 
@@ -229,7 +227,7 @@ contract VaultConstructorTest is Test {
         // Bound reward fee to invalid range [2001, type(uint16).max]
         vm.assume(rewardFee > 2000);
 
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
 
         vm.expectRevert(abi.encodeWithSelector(Vault.InvalidFee.selector, rewardFee));
 
@@ -241,7 +239,7 @@ contract VaultConstructorTest is Test {
         // Assume offset is in invalid range [24, type(uint8).max]
         vm.assume(offset > 23);
 
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
 
         vm.expectRevert(abi.encodeWithSelector(Vault.OffsetTooHigh.selector, offset));
 
@@ -253,7 +251,7 @@ contract VaultConstructorTest is Test {
     /// @notice Test that MorphoAdapter constructor reverts when morphoVault address is zero
     /// @dev Coverage: src/adapters/Morpho.sol:35 - if (morphoVault_ == address(0)) revert MorphoVaultZeroAddress();
     function test_MorphoConstructor_RevertWhen_MorphoVaultIsZeroAddress() public {
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
 
         vm.expectRevert(MorphoAdapter.MorphoVaultZeroAddress.selector);
 
@@ -267,4 +265,5 @@ contract VaultConstructorTest is Test {
             VAULT_SYMBOL
         );
     }
+
 }

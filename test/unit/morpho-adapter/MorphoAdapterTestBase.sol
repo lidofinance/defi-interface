@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {MorphoAdapter} from "src/adapters/Morpho.sol";
 import {MockMetaMorpho} from "test/mocks/MockMetaMorpho.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
+import {TestConfig} from "test/utils/TestConfig.sol";
 
-contract MorphoAdapterTestBase is Test {
+contract MorphoAdapterTestBase is TestConfig {
     MorphoAdapter public vault;
     MockMetaMorpho public morpho;
     MockERC20 public usdc;
+    uint8 internal assetDecimals;
 
     address public treasury = makeAddr("treasury");
     address public alice = makeAddr("alice");
@@ -26,7 +27,8 @@ contract MorphoAdapterTestBase is Test {
     );
 
     function setUp() public virtual {
-        usdc = new MockERC20("USD Coin", "USDC", 6);
+        assetDecimals = _assetDecimals();
+        usdc = new MockERC20("USD Coin", "USDC", assetDecimals);
         morpho = new MockMetaMorpho(IERC20(address(usdc)), "Mock Morpho USDC", "mUSDC", OFFSET);
 
         vault = new MorphoAdapter(
@@ -48,4 +50,5 @@ contract MorphoAdapterTestBase is Test {
         vm.prank(user);
         usdc.approve(address(vault), amount);
     }
+
 }

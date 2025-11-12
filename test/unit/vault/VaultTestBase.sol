@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import "forge-std/Test.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
-import {Vault} from "src/Vault.sol";
+import {TestConfig} from "test/utils/TestConfig.sol";
 import {MockVault} from "test/mocks/MockVault.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
 
-contract VaultTestBase is Test {
+contract VaultTestBase is TestConfig {
     MockVault public vault;
     MockERC20 public asset;
+    uint8 internal assetDecimals;
 
     address public treasury = makeAddr("treasury");
     address public alice = makeAddr("alice");
@@ -27,7 +25,8 @@ contract VaultTestBase is Test {
     );
 
     function setUp() public virtual {
-        asset = new MockERC20("USD Coin", "USDC", 6);
+        assetDecimals = _assetDecimals();
+        asset = new MockERC20("USD Coin", "USDC", assetDecimals);
 
         vault = new MockVault(address(asset), treasury, REWARD_FEE, OFFSET, "Mock Vault", "mvUSDC");
 
