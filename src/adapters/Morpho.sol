@@ -66,17 +66,13 @@ contract MorphoAdapter is Vault {
         }
 
         uint256 morphoSharesBurned = MORPHO_VAULT.withdraw(assets, receiver, address(this));
-
         emit MorphoWithdrawal(assets, morphoSharesBurned, MORPHO_VAULT.balanceOf(address(this)));
-
         return assets;
     }
 
     function _emergencyWithdrawFromProtocol(address receiver) internal override returns (uint256 assets) {
-        uint256 morphoShares = MORPHO_VAULT.balanceOf(address(this));
-
+        uint256 morphoShares = MORPHO_VAULT.maxRedeem(address(this));
         if (morphoShares == 0) return 0;
-
         assets = MORPHO_VAULT.redeem(morphoShares, receiver, address(this));
     }
 

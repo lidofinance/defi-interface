@@ -371,12 +371,13 @@
 
 ---
 
-### MorphoAdapter.Emergency.t.sol (2 tests)
+### MorphoAdapter.Emergency.t.sol (3 tests)
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
 | test_EmergencyWithdraw_ReturnsZeroWhenNoShares | Empty position emergency | Returns 0, receiver gets 0 |
 | test_EmergencyWithdraw_RedeemsMorphoShares | Morpho shares redemption | All shares redeemed, assets transferred, balance = 0 |
+| test_EmergencyWithdraw_WithLiquidityCap | Emergency withdrawal with liquidity cap | Withdraws up to cap, then remaining after cap removal |
 
 ---
 
