@@ -520,6 +520,7 @@ forge test --gas-report
 **Integration Testing:**
 - Morpho vault interaction, capacity limit respect
 - Fee harvesting with external profit, emergency scenarios
+- `test/integration/Solvency.t.sol::test_Solvency_WithRandomCycles` — randomized deposit/withdraw cycles across 32 actors with periodic profit injections; validates solvency, treasury fee redemption, and that the vault ends with zero residual assets under sub-10 wei tolerances
 
 **Edge Cases:**
 - Zero amounts, first deposit minimum, extreme rounding
