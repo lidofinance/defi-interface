@@ -6,8 +6,7 @@ import "./MorphoAdapterTestBase.sol";
 
 contract MorphoAdapterDepositTest is MorphoAdapterTestBase {
     function testFuzz_Deposit_EmitsEvent(uint96 depositAmount) public {
-        uint256 amount = uint256(depositAmount);
-        vm.assume(amount >= vault.MIN_FIRST_DEPOSIT());
+        uint256 amount = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
         usdc.mint(alice, amount);
 
         uint256 expectedShares = vault.previewDeposit(amount);
@@ -20,10 +19,8 @@ contract MorphoAdapterDepositTest is MorphoAdapterTestBase {
     }
 
     function testFuzz_Deposit_MultipleUsers(uint96 aliceAmount, uint96 bobAmount) public {
-        uint256 aliceDeposit = uint256(aliceAmount);
-        uint256 bobDeposit = uint256(bobAmount);
-        vm.assume(aliceDeposit >= vault.MIN_FIRST_DEPOSIT());
-        vm.assume(bobDeposit > 0);
+        uint256 aliceDeposit = bound(uint256(aliceAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 bobDeposit = bound(uint256(bobAmount), 1, type(uint96).max);
         usdc.mint(alice, aliceDeposit);
         usdc.mint(bob, bobDeposit);
 
@@ -43,8 +40,7 @@ contract MorphoAdapterDepositTest is MorphoAdapterTestBase {
     }
 
     function testFuzz_Deposit_UpdatesMorphoBalance(uint96 depositAmount) public {
-        uint256 amount = uint256(depositAmount);
-        vm.assume(amount >= vault.MIN_FIRST_DEPOSIT());
+        uint256 amount = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
         usdc.mint(alice, amount);
 
         uint256 morphoBalanceBefore = morpho.balanceOf(address(vault));
@@ -96,8 +92,7 @@ contract MorphoAdapterDepositTest is MorphoAdapterTestBase {
     }
 
     function testFuzz_FirstDeposit_SuccessIf_MinimumMet(uint96 depositAmount) public {
-        uint256 amount = uint256(depositAmount);
-        vm.assume(amount >= vault.MIN_FIRST_DEPOSIT());
+        uint256 amount = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
         usdc.mint(alice, amount);
 
         uint256 expectedShares = amount * 10 ** vault.OFFSET();

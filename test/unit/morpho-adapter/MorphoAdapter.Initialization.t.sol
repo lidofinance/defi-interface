@@ -43,8 +43,7 @@ contract MorphoAdapterInitializationTest is MorphoAdapterTestBase {
     }
 
     function testFuzz_TotalAssets_ReflectsMorphoBalance(uint96 depositAmount) public {
-        uint256 amount = uint256(depositAmount);
-        vm.assume(amount >= vault.MIN_FIRST_DEPOSIT());
+        uint256 amount = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
         usdc.mint(alice, amount);
 
         vm.prank(alice);
@@ -58,8 +57,7 @@ contract MorphoAdapterInitializationTest is MorphoAdapterTestBase {
     }
 
     function testFuzz_MaxWithdraw(uint96 depositAmount) public {
-        uint256 amount = uint256(depositAmount);
-        vm.assume(amount >= vault.MIN_FIRST_DEPOSIT());
+        uint256 amount = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
         usdc.mint(alice, amount);
 
         vm.prank(alice);
@@ -71,8 +69,7 @@ contract MorphoAdapterInitializationTest is MorphoAdapterTestBase {
     }
 
     function testFuzz_DepositWithdraw_RoundingDoesNotCauseLoss(uint96 depositAmount) public {
-        uint256 amount = uint256(depositAmount);
-        vm.assume(amount >= vault.MIN_FIRST_DEPOSIT());
+        uint256 amount = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
         usdc.mint(alice, amount);
 
         uint256 balanceBefore = usdc.balanceOf(alice);

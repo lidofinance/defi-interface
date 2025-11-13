@@ -24,6 +24,21 @@ contract MorphoAdapterEmergencyTest is MorphoAdapterTestBase {
         assertEq(morpho.balanceOf(address(vault)), 0);
     }
 
+    function testFuzz_EmergencyWithdraw_RedeemsMorphoShares(uint96 depositAmount) public {
+        uint256 deposit = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        usdc.mint(alice, deposit);
+
+        vm.prank(alice);
+        vault.deposit(deposit, alice);
+
+        address receiver = makeAddr("receiver");
+        uint256 withdrawn = vault.emergencyWithdraw(receiver);
+
+        assertApproxEqAbs(withdrawn, deposit, 2);
+        assertApproxEqAbs(usdc.balanceOf(receiver), deposit, 2);
+        assertEq(morpho.balanceOf(address(vault)), 0);
+    }
+
     function test_EmergencyWithdraw_WithLiquidityCap() public {
         vm.prank(alice);
         vault.deposit(80_000e6, alice);

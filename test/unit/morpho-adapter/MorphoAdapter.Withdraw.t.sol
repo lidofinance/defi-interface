@@ -6,11 +6,8 @@ import "./MorphoAdapterTestBase.sol";
 
 contract MorphoAdapterWithdrawTest is MorphoAdapterTestBase {
     function testFuzz_Withdraw_LeavesPositiveShares(uint96 depositAmount, uint96 withdrawAmount) public {
-        uint256 depositAssets = uint256(depositAmount);
-        uint256 withdrawAssets = uint256(withdrawAmount);
-        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
-        vm.assume(withdrawAssets > 0);
-        vm.assume(withdrawAssets < depositAssets);
+        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 withdrawAssets = bound(uint256(withdrawAmount), 1, depositAssets - 1);
         usdc.mint(alice, depositAssets);
 
         vm.prank(alice);
@@ -28,11 +25,8 @@ contract MorphoAdapterWithdrawTest is MorphoAdapterTestBase {
     }
 
     function testFuzz_Withdraw_EmitsEvent(uint96 depositAmount, uint96 withdrawAmount) public {
-        uint256 depositAssets = uint256(depositAmount);
-        uint256 withdrawAssets = uint256(withdrawAmount);
-        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
-        vm.assume(withdrawAssets > 0);
-        vm.assume(withdrawAssets <= depositAssets);
+        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 withdrawAssets = bound(uint256(withdrawAmount), 1, depositAssets);
         usdc.mint(alice, depositAssets);
 
         vm.prank(alice);
@@ -46,10 +40,8 @@ contract MorphoAdapterWithdrawTest is MorphoAdapterTestBase {
     }
 
     function testFuzz_Withdraw_RevertIf_InsufficientShares(uint96 depositAmount, uint96 requestedAssets) public {
-        uint256 depositAssets = uint256(depositAmount);
-        uint256 requestAssets = uint256(requestedAssets);
-        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
-        vm.assume(requestAssets > depositAssets);
+        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max - 1);
+        uint256 requestAssets = bound(uint256(requestedAssets), depositAssets + 1, type(uint96).max);
         usdc.mint(alice, depositAssets);
 
         vm.prank(alice);
@@ -64,18 +56,14 @@ contract MorphoAdapterWithdrawTest is MorphoAdapterTestBase {
     }
 
     function testFuzz_Withdraw_RevertIf_InsufficientLiquidity(uint96 depositAmount, uint96 withdrawAmount) public {
-        uint256 depositAssets = uint256(depositAmount);
-        uint256 withdrawAssets = uint256(withdrawAmount);
-        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
-        vm.assume(withdrawAssets > 0);
-        vm.assume(withdrawAssets <= depositAssets);
+        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 withdrawAssets = bound(uint256(withdrawAmount), 2, depositAssets);
         usdc.mint(alice, depositAssets);
 
         vm.prank(alice);
         vault.deposit(depositAssets, alice);
 
         uint256 cap = withdrawAssets - 1;
-        vm.assume(cap > 0);
         morpho.setLiquidityCap(cap);
 
         vm.expectRevert(abi.encodeWithSelector(Vault.InsufficientLiquidity.selector, withdrawAssets, cap));
@@ -85,8 +73,7 @@ contract MorphoAdapterWithdrawTest is MorphoAdapterTestBase {
     }
 
     function testFuzz_Redeem_AllShares(uint96 depositAmount) public {
-        uint256 depositAssets = uint256(depositAmount);
-        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
+        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
         usdc.mint(alice, depositAssets);
 
         vm.prank(alice);
@@ -104,11 +91,8 @@ contract MorphoAdapterWithdrawTest is MorphoAdapterTestBase {
     }
 
     function testFuzz_Withdraw_DelegatedWithApproval(uint96 depositAmount, uint96 withdrawAmount) public {
-        uint256 depositAssets = uint256(depositAmount);
-        uint256 withdrawAssets = uint256(withdrawAmount);
-        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
-        vm.assume(withdrawAssets > 0);
-        vm.assume(withdrawAssets <= depositAssets);
+        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 withdrawAssets = bound(uint256(withdrawAmount), 1, depositAssets);
         usdc.mint(alice, depositAssets);
 
         vm.prank(alice);
@@ -137,11 +121,8 @@ contract MorphoAdapterWithdrawTest is MorphoAdapterTestBase {
     function testFuzz_Withdraw_DelegatedRevertIf_InsufficientAllowance(uint96 depositAmount, uint96 withdrawAmount)
         public
     {
-        uint256 depositAssets = uint256(depositAmount);
-        uint256 withdrawAssets = uint256(withdrawAmount);
-        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
-        vm.assume(withdrawAssets > 0);
-        vm.assume(withdrawAssets <= depositAssets);
+        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 withdrawAssets = bound(uint256(withdrawAmount), 1, depositAssets);
         usdc.mint(alice, depositAssets);
 
         vm.prank(alice);
@@ -158,11 +139,8 @@ contract MorphoAdapterWithdrawTest is MorphoAdapterTestBase {
     }
 
     function testFuzz_Withdraw_DelegatedRevertIf_NoApproval(uint96 depositAmount, uint96 withdrawAmount) public {
-        uint256 depositAssets = uint256(depositAmount);
-        uint256 withdrawAssets = uint256(withdrawAmount);
-        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
-        vm.assume(withdrawAssets > 0);
-        vm.assume(withdrawAssets <= depositAssets);
+        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 withdrawAssets = bound(uint256(withdrawAmount), 1, depositAssets);
         usdc.mint(alice, depositAssets);
 
         vm.prank(alice);
@@ -174,11 +152,8 @@ contract MorphoAdapterWithdrawTest is MorphoAdapterTestBase {
     }
 
     function testFuzz_Withdraw_SelfDoesNotRequireApproval(uint96 depositAmount, uint96 withdrawAmount) public {
-        uint256 depositAssets = uint256(depositAmount);
-        uint256 withdrawAssets = uint256(withdrawAmount);
-        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
-        vm.assume(withdrawAssets > 0);
-        vm.assume(withdrawAssets <= depositAssets);
+        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 withdrawAssets = bound(uint256(withdrawAmount), 1, depositAssets);
         usdc.mint(alice, depositAssets);
 
         vm.prank(alice);
@@ -197,11 +172,8 @@ contract MorphoAdapterWithdrawTest is MorphoAdapterTestBase {
     }
 
     function testFuzz_Withdraw_DelegatedWithUnlimitedApproval(uint96 depositAmount, uint96 withdrawAmount) public {
-        uint256 depositAssets = uint256(depositAmount);
-        uint256 withdrawAssets = uint256(withdrawAmount);
-        vm.assume(depositAssets >= vault.MIN_FIRST_DEPOSIT());
-        vm.assume(withdrawAssets > 0);
-        vm.assume(withdrawAssets <= depositAssets);
+        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 withdrawAssets = bound(uint256(withdrawAmount), 1, depositAssets);
         usdc.mint(alice, depositAssets);
 
         vm.prank(alice);

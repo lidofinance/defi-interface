@@ -115,6 +115,24 @@ contract MorphoAdapterMaxDepositTest is MorphoAdapterTestBase {
         assertLe(newMaxDeposit, initialMaxDeposit, "MaxDeposit should not increase after deposit");
     }
 
+    function testFuzz_MaxDeposit_UpdatesAfterDeposit(uint96 depositAmount) public {
+        uint256 initialMaxDeposit = vault.maxDeposit(alice);
+        uint256 minDeposit = vault.MIN_FIRST_DEPOSIT();
+        // Если maxDeposit меньше minDeposit, пропускаем тест
+        vm.assume(initialMaxDeposit >= minDeposit);
+        // Ограничиваем верхнюю границу для избежания проблем с bound
+        uint256 maxBound = initialMaxDeposit > type(uint96).max ? type(uint96).max : initialMaxDeposit;
+        uint256 deposit = bound(uint256(depositAmount), minDeposit, maxBound);
+        usdc.mint(alice, deposit);
+
+        vm.prank(alice);
+        vault.deposit(deposit, alice);
+
+        uint256 newMaxDeposit = vault.maxDeposit(alice);
+
+        assertLe(newMaxDeposit, initialMaxDeposit, "MaxDeposit should not increase after deposit");
+    }
+
     function test_MaxDeposit_MultipleDepositsApproachingCap() public {
         uint256 maxDeposit = vault.maxDeposit(alice);
 
@@ -145,6 +163,23 @@ contract MorphoAdapterMaxDepositTest is MorphoAdapterTestBase {
         uint256 newMaxDeposit = vault.maxDeposit(alice);
         assertLt(newMaxDeposit, initialMaxDeposit, "MaxDeposit should decrease after deposit");
         assertEq(newMaxDeposit, initialMaxDeposit - 10_000e6, "MaxDeposit should decrease by deposit amount");
+    }
+
+    function testFuzz_Deposit_WithCap_UpdatesMaxDeposit(uint96 capAmount, uint96 depositAmount) public {
+        uint256 cap = bound(uint256(capAmount), vault.MIN_FIRST_DEPOSIT() * 2, type(uint96).max);
+        uint256 deposit = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), cap / 2); // deposit должен быть меньше половины cap для теста
+        usdc.mint(alice, deposit);
+
+        morpho.setLiquidityCap(cap);
+
+        uint256 initialMaxDeposit = vault.maxDeposit(alice);
+
+        vm.prank(alice);
+        vault.deposit(deposit, alice);
+
+        uint256 newMaxDeposit = vault.maxDeposit(alice);
+        assertLt(newMaxDeposit, initialMaxDeposit, "MaxDeposit should decrease after deposit");
+        assertEq(newMaxDeposit, initialMaxDeposit - deposit, "MaxDeposit should decrease by deposit amount");
     }
 
     /// @notice Tests deposit with pending fees - harvest happens before checking cap

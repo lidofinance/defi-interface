@@ -19,6 +19,17 @@ contract MorphoAdapterFeesTest is MorphoAdapterTestBase {
         assertEq(vault.rewardFee(), newFee);
     }
 
+    function testFuzz_SetRewardFee_ValidRange(uint16 newFee) public {
+        newFee = uint16(bound(uint256(newFee), 0, vault.MAX_REWARD_FEE_BASIS_POINTS()));
+
+        vm.expectEmit(true, true, false, true);
+        emit Vault.RewardFeeUpdated(REWARD_FEE, newFee);
+
+        vault.setRewardFee(newFee);
+
+        assertEq(vault.rewardFee(), newFee);
+    }
+
     function test_SetRewardFee_ToZero() public {
         vm.expectEmit(true, true, false, true);
         emit Vault.RewardFeeUpdated(REWARD_FEE, 0);
@@ -124,6 +135,25 @@ contract MorphoAdapterFeesTest is MorphoAdapterTestBase {
         uint256 initialTreasuryShares = vault.balanceOf(treasury);
 
         uint256 profit = 10_000e6;
+        deal(address(usdc), address(morpho), usdc.balanceOf(address(morpho)) + profit);
+
+        vault.harvestFees();
+
+        uint256 treasurySharesAfter = vault.balanceOf(treasury);
+
+        assertGt(treasurySharesAfter, initialTreasuryShares);
+    }
+
+    function testFuzz_HarvestFees_WithProfit(uint96 depositAmount, uint96 profitAmount) public {
+        uint256 deposit = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 profit = bound(uint256(profitAmount), 100, type(uint96).max / 2); // Минимальный профит 100, max /2 для избежания overflow
+        usdc.mint(alice, deposit);
+
+        vm.prank(alice);
+        vault.deposit(deposit, alice);
+
+        uint256 initialTreasuryShares = vault.balanceOf(treasury);
+
         deal(address(usdc), address(morpho), usdc.balanceOf(address(morpho)) + profit);
 
         vault.harvestFees();
@@ -278,6 +308,23 @@ contract MorphoAdapterFeesTest is MorphoAdapterTestBase {
 
         uint256 pendingFees = vault.getPendingFees();
         assertApproxEqAbs(pendingFees, expectedFeeAmount, 1);
+    }
+
+    function testFuzz_GetPendingFees_WithProfit(uint96 depositAmount, uint96 profitAmount) public {
+        uint256 deposit = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 profit = bound(uint256(profitAmount), 100, type(uint96).max / 2); // Минимальный профит 100 для точных вычислений
+        usdc.mint(alice, deposit);
+
+        vm.prank(alice);
+        vault.deposit(deposit, alice);
+
+        deal(address(usdc), address(morpho), usdc.balanceOf(address(morpho)) + profit);
+
+        uint256 expectedFeeAmount = (profit * vault.rewardFee()) / vault.MAX_BASIS_POINTS();
+
+        uint256 pendingFees = vault.getPendingFees();
+        // Используем больше tolerance для фаззинг тестов из-за rounding в разных местах
+        assertApproxEqAbs(pendingFees, expectedFeeAmount, expectedFeeAmount / 1000 + 10);
     }
 
     function test_GetPendingFees_NoProfit() public {
