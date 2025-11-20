@@ -47,9 +47,7 @@ contract MorphoAdapterMaxDepositTest is MorphoAdapterTestBase {
 
         uint256 excessiveAmount = vaultMaxDeposit + 1e6;
 
-        vm.expectRevert(
-            abi.encodeWithSelector(Vault.ExceedsMaxDeposit.selector, excessiveAmount, vaultMaxDeposit)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Vault.ExceedsMaxDeposit.selector, excessiveAmount, vaultMaxDeposit));
         vm.prank(alice);
         vault.deposit(excessiveAmount, alice);
     }

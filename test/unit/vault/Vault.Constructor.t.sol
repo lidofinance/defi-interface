@@ -265,5 +265,4 @@ contract VaultConstructorTest is TestConfig {
             VAULT_SYMBOL
         );
     }
-
 }

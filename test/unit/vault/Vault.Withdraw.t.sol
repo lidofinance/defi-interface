@@ -224,7 +224,9 @@ contract VaultWithdrawTest is VaultTestBase {
 
         uint256 assetsAfter = vault.totalAssets();
 
-        assertApproxEqAbs(sharesBurned, vault.previewWithdraw(10_000e6), 1, "SharesBurned should match preview within 1 wei");
+        assertApproxEqAbs(
+            sharesBurned, vault.previewWithdraw(10_000e6), 1, "SharesBurned should match preview within 1 wei"
+        );
         assertEq(vault.lastTotalAssets(), assetsAfter);
         assertEq(totalAssetsBefore - assetsAfter, 10_000e6);
     }

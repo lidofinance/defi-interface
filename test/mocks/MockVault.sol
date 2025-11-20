@@ -81,11 +81,8 @@ contract MockVault is Vault {
         return actualAssets;
     }
 
-    function _emergencyWithdrawFromProtocol(address receiver) internal override returns (uint256) {
-        uint256 balance = IERC20(asset()).balanceOf(address(this));
-        if (balance > 0) {
-            IERC20(asset()).safeTransfer(receiver, balance);
-        }
-        return balance;
+    function _getProtocolBalance() internal view override returns (uint256) {
+        // MockVault doesn't have actual protocol integration, always return 0
+        return 0;
     }
 }

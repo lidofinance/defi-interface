@@ -27,7 +27,6 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
  *      Inheriting contracts must implement:
  *      - _depositToProtocol(): Protocol-specific deposit logic
  *      - _withdrawFromProtocol(): Protocol-specific withdrawal logic
- *      - _emergencyWithdrawFromProtocol(): Protocol-specific emergency recovery
  *      - totalAssets(): Total assets under management
  */
 abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard, Pausable {
@@ -105,11 +104,6 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
     /// @param oldTreasury Previous treasury address
     /// @param newTreasury New treasury address
     event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
-
-    /// @notice Emitted when emergency withdrawal is executed
-    /// @param receiver Address that received the withdrawn assets
-    /// @param amount Amount of assets withdrawn
-    event EmergencyWithdrawal(address indexed receiver, uint256 amount);
 
     /// @notice Emitted when vault is paused
     /// @param timestamp Block timestamp when vault was paused
@@ -394,6 +388,13 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
      */
     function _withdrawFromProtocol(uint256 assets, address receiver) internal virtual returns (uint256 actualAssets);
 
+    /**
+     * @notice Returns current balance in underlying protocol
+     * @dev Must be implemented by inheriting contracts to track protocol exposure
+     * @return Amount currently locked in protocol (in asset terms)
+     */
+    function _getProtocolBalance() internal view virtual returns (uint256);
+
     /* ========== FEE MANAGEMENT ========== */
 
     /**
@@ -410,7 +411,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
      * @dev Calculates profit as (currentTotal - lastTotalAssets), takes fee percentage,
      *      and mints corresponding shares to TREASURY address
      */
-    function _harvestFees() internal {
+    function _harvestFees() internal virtual {
         uint256 currentTotal = totalAssets();
         uint256 supply = totalSupply();
 
@@ -522,35 +523,16 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         emit VaultUnpaused(block.timestamp);
     }
 
-    /* ========== EMERGENCY FUNCTIONS ========== */
-
-    /**
-     * @notice Executes emergency withdrawal from underlying protocol
-     * @dev Automatically pauses vault and withdraws all protocol positions.
-     *      Users can still withdraw/redeem their vault shares after this.
-     *      Only callable by EMERGENCY_ROLE.
-     * @param receiver Address that will receive the withdrawn assets
-     * @return amount Amount of assets withdrawn from protocol
-     */
-    function emergencyWithdraw(address receiver) external virtual onlyRole(EMERGENCY_ROLE) returns (uint256 amount) {
-        if (receiver == address(0)) revert ZeroAddress();
-        if (!paused()) _pause();
-
-        amount = _emergencyWithdrawFromProtocol(receiver);
-        lastTotalAssets = totalAssets();
-
-        emit EmergencyWithdrawal(receiver, amount);
-    }
-
-    /**
-     * @notice Withdraws all assets from underlying protocol in emergency
-     * @dev Must be implemented by inheriting contracts for protocol-specific emergency logic
-     * @param receiver Address that will receive all withdrawn assets
-     * @return Amount of assets withdrawn
-     */
-    function _emergencyWithdrawFromProtocol(address receiver) internal virtual returns (uint256);
-
     /* ========== VIEW FUNCTIONS ========== */
+
+    /**
+     * @notice Returns current balance in underlying protocol
+     * @dev Useful for monitoring protocol exposure and tracking emergency withdrawal progress
+     * @return Amount currently locked in protocol (in asset terms)
+     */
+    function getProtocolBalance() public view returns (uint256) {
+        return _getProtocolBalance();
+    }
 
     /**
      * @notice Returns the number of decimals for vault shares

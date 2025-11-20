@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import "test/unit/morpho-adapter/MorphoAdapterTestBase.sol";
 import "forge-std/console.sol";
 
 contract SolvencyTest is MorphoAdapterTestBase {
+    using Math for uint256;
+
     address[] public users;
     uint256 internal constant USER_COUNT = 256;
+    uint256 internal constant EMERGENCY_TEST_USERS = 32;
 
     function setUp() public override {
         super.setUp();
@@ -40,7 +44,8 @@ contract SolvencyTest is MorphoAdapterTestBase {
             } else {
                 uint256 userShares = vault.balanceOf(user);
                 if (userShares > 0) {
-                    uint256 sharesToWithdraw = (userShares * (amount % vault.MAX_BASIS_POINTS())) / vault.MAX_BASIS_POINTS();
+                    uint256 sharesToWithdraw =
+                        (userShares * (amount % vault.MAX_BASIS_POINTS())) / vault.MAX_BASIS_POINTS();
                     if (sharesToWithdraw > 0) {
                         uint256 assetsToWithdraw = vault.previewWithdraw(sharesToWithdraw);
                         if (vault.maxWithdraw(user) >= assetsToWithdraw) {
@@ -89,5 +94,64 @@ contract SolvencyTest is MorphoAdapterTestBase {
 
         // Vault must be completely empty
         assertEq(finalVaultAssets, 0);
+    }
+
+    function test_EmergencySolvency_AllUsersRedeemVaultEmpty() public {
+        uint256 totalDeposited = 0;
+        for (uint256 i = 0; i < EMERGENCY_TEST_USERS; i++) {
+            address user = users[i];
+            uint256 amount = (i + 1) * 1_000e6;
+            vm.prank(user);
+            vault.deposit(amount, user);
+            totalDeposited += amount;
+        }
+
+        uint256 accruedProfit = 5_000_000e6;
+        usdc.mint(address(morpho), accruedProfit);
+
+        vm.prank(address(this));
+        vault.emergencyWithdraw();
+
+        vm.prank(address(this));
+        vault.activateRecovery(usdc.balanceOf(address(vault)));
+
+        uint256 snapshotAssets = vault.recoveryAssets();
+        uint256 snapshotSupply = vault.recoverySupply();
+        assertGt(snapshotSupply, 0);
+        assertApproxEqAbs(snapshotAssets, totalDeposited + accruedProfit, EMERGENCY_TEST_USERS + 1);
+
+        uint256 totalDistributed = 0;
+        for (uint256 i = 0; i < EMERGENCY_TEST_USERS; i++) {
+            address user = users[i];
+            uint256 userShares = vault.balanceOf(user);
+            if (userShares == 0) continue;
+            uint256 expectedAssets = userShares.mulDiv(snapshotAssets, snapshotSupply, Math.Rounding.Floor);
+            if (expectedAssets == 0) continue;
+            vm.prank(user);
+            uint256 received = vault.emergencyRedeem(userShares, user, user);
+            totalDistributed += received;
+            assertEq(received, expectedAssets);
+            assertEq(vault.balanceOf(user), 0);
+        }
+
+        uint256 treasuryShares = vault.balanceOf(treasury);
+        uint256 treasuryDistributed = 0;
+
+        if (treasuryShares > 0) {
+            vm.prank(treasury);
+            treasuryDistributed = vault.emergencyRedeem(treasuryShares, treasury, treasury);
+        }
+
+        uint256 vaultBalance = usdc.balanceOf(address(vault));
+        uint256 distributedWithTreasury = totalDistributed + treasuryDistributed;
+
+        assertEq(distributedWithTreasury + vaultBalance, snapshotAssets);
+        assertEq(vault.totalSupply(), 0);
+        assertApproxEqAbs(
+            distributedWithTreasury, totalDeposited + accruedProfit - vaultBalance, EMERGENCY_TEST_USERS + 1
+        );
+
+        uint256 netProfitForUsers = accruedProfit - treasuryDistributed;
+        assertApproxEqAbs(totalDistributed, totalDeposited + netProfitForUsers - vaultBalance, EMERGENCY_TEST_USERS + 1);
     }
 }

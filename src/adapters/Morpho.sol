@@ -7,23 +7,29 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IMetaMorpho} from "@morpho/interfaces/IMetaMorpho.sol";
 
 import {Vault} from "../Vault.sol";
+import {EmergencyVault} from "../EmergencyVault.sol";
 
 /**
  * @title MorphoAdapter
  * @notice ERC4626 vault adapter that integrates with Morpho MetaMorpho lending vaults
- * @dev Extends the base Vault contract with Morpho-specific implementation:
+ * @dev Extends EmergencyVault with Morpho-specific implementation:
  *      - Deposits user assets into Morpho MetaMorpho vaults to earn yield
  *      - Tracks positions via Morpho vault shares
  *      - Respects Morpho's liquidity caps in maxDeposit/maxMint
  *      - Uses infinite approval pattern for gas efficiency
- *      - Inherits all security features from base Vault (fees, pause, access control, etc.)
+ *      - Multi-stage emergency withdrawal with user fund protection
+ *      - Inherits all security features (fees, pause, access control, emergency mode)
+ *
+ *      Inheritance hierarchy:
+ *      Vault (abstract) → EmergencyVault (abstract) → MorphoAdapter (concrete)
  *
  *      Key design decisions:
  *      - One-time infinite approval set in constructor
- *      - maxDeposit/maxWithdraw respect both vault and Morpho constraints
- *      - Emergency withdrawal redeems all Morpho shares
+ *      - maxDeposit/maxWithdraw respect vault, emergency state, and Morpho constraints
+ *      - Emergency withdrawal redeems all Morpho shares with multi-attempt support
+ *      - Settlement mode allows proportional user withdrawals from vault balance
  */
-contract MorphoAdapter is Vault {
+contract MorphoAdapter is EmergencyVault {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -100,14 +106,23 @@ contract MorphoAdapter is Vault {
 
     /**
      * @notice Returns total assets under management in the vault
-     * @dev Converts Morpho vault shares held by this contract to underlying asset value.
-     *      This is the primary accounting function - all ERC4626 conversions depend on it.
-     * @return Total underlying assets (includes deposited assets and accrued yield)
+     * @dev Sums assets in Morpho vault and vault balance.
+     *      Gas optimized: only checks vault balance during emergency (when funds withdrawn from Morpho).
+     * @return Total underlying assets (Morpho position + vault balance)
      */
     function totalAssets() public view override returns (uint256) {
         uint256 morphoShares = MORPHO_VAULT.balanceOf(address(this));
-        if (morphoShares == 0) return 0;
-        return MORPHO_VAULT.convertToAssets(morphoShares);
+        uint256 morphoAssets;
+
+        if (morphoShares > 0) {
+            morphoAssets = MORPHO_VAULT.convertToAssets(morphoShares);
+        }
+
+        if (emergencyMode) {
+            return morphoAssets + ASSET.balanceOf(address(this));
+        }
+
+        return morphoAssets;
     }
 
     /**
@@ -117,7 +132,7 @@ contract MorphoAdapter is Vault {
      *      When not paused, returns Morpho's available capacity (cap - totalAssets).
      * @return Maximum assets that can be deposited (0 if paused or Morpho at cap)
      */
-    function maxDeposit(address) public view override returns (uint256) {
+    function maxDeposit(address /* user */ ) public view override returns (uint256) {
         if (paused()) return 0;
         return MORPHO_VAULT.maxDeposit(address(this));
     }
@@ -128,7 +143,7 @@ contract MorphoAdapter is Vault {
      *      Returns 0 when paused or when Morpho vault is at capacity.
      * @return Maximum shares that can be minted (0 if paused or Morpho at cap)
      */
-    function maxMint(address) public view override returns (uint256) {
+    function maxMint(address /* user */ ) public view override returns (uint256) {
         if (paused()) return 0;
         uint256 maxAssets = MORPHO_VAULT.maxDeposit(address(this));
         return _convertToShares(maxAssets, Math.Rounding.Floor);
@@ -182,7 +197,7 @@ contract MorphoAdapter is Vault {
         uint256 availableAssets = MORPHO_VAULT.maxWithdraw(address(this));
 
         if (assets > availableAssets) {
-            revert Vault.InsufficientLiquidity(assets, availableAssets);
+            revert InsufficientLiquidity(assets, availableAssets);
         }
 
         uint256 morphoSharesBurned = MORPHO_VAULT.withdraw(assets, receiver, address(this));
@@ -192,10 +207,10 @@ contract MorphoAdapter is Vault {
 
     /**
      * @notice Emergency withdrawal of all Morpho positions
-     * @dev Internal function called by emergencyWithdraw() in base Vault.
-     *      Redeems ALL Morpho shares held by this contract in one transaction.
+     * @dev Called by emergencyWithdraw() in EmergencyVault.
+     *      Redeems ALL available Morpho shares held by this contract.
      *      Returns 0 if no shares to redeem (safe no-op).
-     *      Only callable by EMERGENCY_ROLE via base Vault's access control.
+     *      Can be called multiple times if Morpho has partial liquidity.
      * @param receiver Address that receives the withdrawn assets
      * @return assets Amount of assets recovered from Morpho vault
      */
@@ -203,6 +218,18 @@ contract MorphoAdapter is Vault {
         uint256 morphoShares = MORPHO_VAULT.maxRedeem(address(this));
         if (morphoShares == 0) return 0;
         assets = MORPHO_VAULT.redeem(morphoShares, receiver, address(this));
+    }
+
+    /**
+     * @notice Returns current balance in Morpho vault
+     * @dev Used by EmergencyVault to track protocol exposure and withdrawal progress.
+     *      Returns the asset value of Morpho shares currently held by this contract.
+     * @return Amount currently locked in Morpho (in asset terms)
+     */
+    function _getProtocolBalance() internal view override returns (uint256) {
+        uint256 morphoShares = MORPHO_VAULT.balanceOf(address(this));
+        if (morphoShares == 0) return 0;
+        return MORPHO_VAULT.convertToAssets(morphoShares);
     }
 
     /* ========== ADMIN FUNCTIONS ========== */

@@ -2,12 +2,15 @@
 pragma solidity 0.8.30;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {MorphoAdapter} from "src/adapters/Morpho.sol";
 import {MockMetaMorpho} from "test/mocks/MockMetaMorpho.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
 import {TestConfig} from "test/utils/TestConfig.sol";
 
 contract MorphoAdapterTestBase is TestConfig {
+    using Math for uint256;
+
     MorphoAdapter public vault;
     MockMetaMorpho public morpho;
     MockERC20 public usdc;
@@ -50,5 +53,4 @@ contract MorphoAdapterTestBase is TestConfig {
         vm.prank(user);
         usdc.approve(address(vault), amount);
     }
-
 }
