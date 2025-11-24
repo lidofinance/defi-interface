@@ -257,7 +257,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
 
         assertEq(vault.recoveryAssets(), vaultBalance);
         assertEq(vault.recoverySupply(), totalSupply);
-        assertTrue(vault.recoveryActive());
+        assertTrue(vault.recoveryMode());
     }
 
     function testFuzz_activateRecovery_HarvestsFeesBeforeSnapshot(uint96 depositAmount) public {
@@ -369,7 +369,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
         vm.prank(emergencyAdmin);
         vault.activateRecovery(vaultBalance);
 
-        assertTrue(vault.recoveryActive());
+        assertTrue(vault.recoveryMode());
         assertEq(vault.recoveryAssets(), vaultBalance);
     }
 
@@ -411,7 +411,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
         vault.activateRecovery(vaultBalance);
 
         assertEq(vault.emergencyMode(), false, "Emergency mode should still be false");
-        assertEq(vault.recoveryActive(), false, "Recovery should not be active");
+        assertEq(vault.recoveryMode(), false, "Recovery should not be active");
         assertGt(vault.getProtocolBalance(), 0, "Funds should still be in protocol");
     }
 
@@ -970,7 +970,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
         vm.prank(emergencyAdmin);
         vault.activateRecovery(usdc.balanceOf(address(vault)));
 
-        assertTrue(vault.recoveryActive());
+        assertTrue(vault.recoveryMode());
         assertApproxEqAbs(vault.recoveryAssets(), amount, 2);
     }
 

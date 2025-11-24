@@ -109,7 +109,7 @@ abstract contract EmergencyVault is Vault {
     bool public emergencyMode;
 
     /// @notice Whether emergency recovery is active (users can claim)
-    bool public recoveryActive;
+    bool public recoveryMode;
 
     /// @notice Total assets snapshot when emergency mode activated (before any withdrawals)
     uint256 public emergencyTotalAssets;
@@ -191,7 +191,7 @@ abstract contract EmergencyVault is Vault {
      * @return recovered Amount of assets recovered in this call
      */
     function emergencyWithdraw() external virtual onlyRole(EMERGENCY_ROLE) nonReentrant returns (uint256 recovered) {
-        if (recoveryActive) revert RecoveryAlreadyActive();
+        if (recoveryMode) revert RecoveryAlreadyActive();
         if (!emergencyMode) activateEmergencyMode();
 
         recovered = _emergencyWithdrawFromProtocol(address(this));
@@ -243,7 +243,7 @@ abstract contract EmergencyVault is Vault {
         onlyRole(EMERGENCY_ROLE)
         nonReentrant
     {
-        if (recoveryActive) revert RecoveryAlreadyActive();
+        if (recoveryMode) revert RecoveryAlreadyActive();
         if (!emergencyMode) revert EmergencyModeNotActive();
 
         uint256 vaultBalance = IERC20(asset()).balanceOf(address(this));
@@ -263,7 +263,7 @@ abstract contract EmergencyVault is Vault {
 
         recoveryAssets = declaredRecoverableAmount;
         recoverySupply = supply;
-        recoveryActive = true;
+        recoveryMode = true;
 
         emit RecoveryActivated(recoveryAssets, recoverySupply, protocolBalance, implicitLoss);
     }
@@ -273,7 +273,7 @@ abstract contract EmergencyVault is Vault {
      * @param recipient Address that receives the remaining assets
      */
     function sweepDust(address recipient) external onlyRole(EMERGENCY_ROLE) nonReentrant {
-        if (!recoveryActive) revert RecoveryNotActive();
+        if (!recoveryMode) revert RecoveryNotActive();
         if (totalSupply() != 0) revert SweepNotReady();
         if (recipient == address(0)) revert ZeroAddress();
 
@@ -338,7 +338,7 @@ abstract contract EmergencyVault is Vault {
 
     /**
      * @notice Redeem shares for proportional assets during emergency recovery
-     * @dev Only available when recoveryActive == true.
+     * @dev Only available when recoveryMode == true.
      *      Uses snapshot ratio from recovery activation for fair pro-rata distribution.
      *      Burns shares and transfers proportional assets from vault balance.
      *
@@ -354,7 +354,7 @@ abstract contract EmergencyVault is Vault {
         nonReentrant
         returns (uint256 assets)
     {
-        if (!recoveryActive) {
+        if (!recoveryMode) {
             revert RecoveryNotActive();
         }
         if (shares == 0) revert ZeroAmount();
