@@ -97,21 +97,17 @@ contract ERC4626Adapter is EmergencyVault {
      * @notice Returns total assets under management in the adapter
      * @dev Sums assets in target vault and idle vault balance.
      *      During emergency mode funds may sit idle while being distributed.
-     * @return Total assets managed by the adapter (in target vault + idle balance during emergency)
+     * @return targetAssets Total assets managed by the adapter (in target vault + idle balance during emergency)
      */
-    function totalAssets() public view override returns (uint256) {
+    function totalAssets() public view override returns (uint256 targetAssets) {
         uint256 targetShares = TARGET_VAULT.balanceOf(address(this));
-        uint256 targetAssets;
 
         if (targetShares > 0) {
             targetAssets = TARGET_VAULT.convertToAssets(targetShares);
         }
-
         if (emergencyMode) {
             return targetAssets + ASSET.balanceOf(address(this));
         }
-
-        return targetAssets;
     }
 
     /**
@@ -156,9 +152,7 @@ contract ERC4626Adapter is EmergencyVault {
     function _depositToProtocol(uint256 assets) internal override returns (uint256 shares) {
         shares = TARGET_VAULT.deposit(assets, address(this));
         if (shares == 0) revert TargetVaultDepositFailed();
-
         emit TargetVaultDeposit(assets, shares, TARGET_VAULT.balanceOf(address(this)));
-        return shares;
     }
 
     /**

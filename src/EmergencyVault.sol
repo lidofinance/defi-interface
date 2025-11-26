@@ -207,8 +207,9 @@ abstract contract EmergencyVault is Vault {
         if (emergencyMode) revert EmergencyModeAlreadyActive();
 
         emergencyMode = true;
-        emergencyTotalAssets = totalAssets();
-        emit EmergencyModeActivated(emergencyTotalAssets, block.timestamp);
+        uint256 snapshotAssets = totalAssets();
+        emergencyTotalAssets = snapshotAssets;
+        emit EmergencyModeActivated(snapshotAssets, block.timestamp);
     }
 
     /**
@@ -264,7 +265,7 @@ abstract contract EmergencyVault is Vault {
         recoverySupply = supply;
         recoveryMode = true;
 
-        emit RecoveryActivated(recoveryAssets, recoverySupply, protocolBalance, implicitLoss);
+        emit RecoveryActivated(declaredRecoverableAmount, supply, protocolBalance, implicitLoss);
     }
 
     /**
@@ -372,7 +373,6 @@ abstract contract EmergencyVault is Vault {
         IERC20(asset()).safeTransfer(receiver, assets);
 
         emit Withdrawn(msg.sender, receiver, owner, assets, shares);
-        return assets;
     }
 
     /* ========== INTERNAL VIRTUAL FUNCTIONS ========== */

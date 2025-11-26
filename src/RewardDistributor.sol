@@ -182,7 +182,8 @@ contract RewardDistributor is AccessControl {
             revert NoBalance();
         }
 
-        for (uint256 i = 0; i < recipients.length; i++) {
+        uint256 recipientsLength = recipients.length;
+        for (uint256 i = 0; i < recipientsLength; i++) {
             Recipient memory recipient = recipients[i];
 
             uint256 amount = (balance * recipient.basisPoints) / MAX_BASIS_POINTS;
@@ -214,7 +215,9 @@ contract RewardDistributor is AccessControl {
      */
     function getRecipient(uint256 index) external view returns (address account, uint256 basisPoints) {
         Recipient memory recipient = recipients[index];
-        return (recipient.account, recipient.basisPoints);
+
+        account = recipient.account;
+        basisPoints = recipient.basisPoints;
     }
 
     /**

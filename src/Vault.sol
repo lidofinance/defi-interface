@@ -190,9 +190,8 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         }
         if (offset_ > MAX_OFFSET) revert OffsetTooHigh(offset_);
 
-        TREASURY = treasury_;
         OFFSET = offset_;
-
+        TREASURY = treasury_;
         rewardFee = rewardFee_;
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin_);
@@ -472,10 +471,8 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
 
         _harvestFees();
 
-        uint256 oldFee = rewardFee;
+        emit RewardFeeUpdated(rewardFee, newFee);
         rewardFee = newFee;
-
-        emit RewardFeeUpdated(oldFee, newFee);
     }
 
     /**
@@ -683,15 +680,15 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
     /**
      * @notice Calculates pending performance fees not yet harvested
      * @dev Returns fee amount based on profit since last harvest
-     * @return Amount of assets that will be taken as fees on next harvest
+     * @return feeAmount Amount of assets that will be taken as fees on next harvest
      */
-    function getPendingFees() external view returns (uint256) {
+    function getPendingFees() external view returns (uint256 feeAmount) {
         uint256 currentTotal = totalAssets();
-        if (currentTotal <= lastTotalAssets) return 0;
+        uint256 totalAssets = lastTotalAssets;
+        if (currentTotal <= totalAssets) return 0;
 
-        uint256 profit = currentTotal - lastTotalAssets;
-        uint256 feeAmount = profit.mulDiv(rewardFee, MAX_BASIS_POINTS, Math.Rounding.Ceil);
+        uint256 profit = currentTotal - totalAssets;
+        feeAmount = profit.mulDiv(rewardFee, MAX_BASIS_POINTS, Math.Rounding.Ceil);
         if (feeAmount > profit) feeAmount = profit;
-        return feeAmount;
     }
 }
