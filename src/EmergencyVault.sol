@@ -147,13 +147,6 @@ abstract contract EmergencyVault is Vault {
         uint256 recoveryAssets, uint256 recoverySupply, uint256 protocolBalance, uint256 implicitLoss
     );
 
-    /**
-     * @notice Emitted when leftover assets are swept after all redemptions complete
-     * @param recipient Address receiving the swept assets
-     * @param amount Amount of assets transferred
-     */
-    event DustSwept(address indexed recipient, uint256 amount);
-
     /* ========== ERRORS ========== */
 
     /// @notice Thrown when emergency recovery is not active
@@ -170,9 +163,6 @@ abstract contract EmergencyVault is Vault {
 
     /// @notice Thrown when declared recoverable amount doesn't match vault balance
     error RecoverableAmountMismatch(uint256 declared, uint256 actual);
-
-    /// @notice Thrown when attempting to sweep dust before all shares are burned
-    error SweepNotReady();
 
     /// @notice Thrown when trying to activate recovery without emergency mode being active
     error EmergencyModeNotActive();
@@ -266,23 +256,6 @@ abstract contract EmergencyVault is Vault {
         recoveryMode = true;
 
         emit RecoveryActivated(declaredRecoverableAmount, supply, protocolBalance, implicitLoss);
-    }
-
-    /**
-     * @notice Sweep any leftover assets once all shares are redeemed
-     * @dev Only callable by EMERGENCY_ROLE after all shares have been burned (totalSupply == 0)
-     * @param recipient Address that receives the remaining assets
-     */
-    function sweepDust(address recipient) external onlyRole(EMERGENCY_ROLE) nonReentrant {
-        if (!recoveryMode) revert RecoveryNotActive();
-        if (totalSupply() != 0) revert SweepNotReady();
-        if (recipient == address(0)) revert ZeroAddress();
-
-        uint256 vaultBalance = IERC20(asset()).balanceOf(address(this));
-        if (vaultBalance == 0) revert ZeroAmount();
-
-        IERC20(asset()).safeTransfer(recipient, vaultBalance);
-        emit DustSwept(recipient, vaultBalance);
     }
 
     /* ========== OVERRIDES TO BLOCK NORMAL OPERATIONS DURING EMERGENCY ========== */

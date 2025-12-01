@@ -343,13 +343,6 @@
 | testFuzz_Deposit_RevertIf_EmergencyMode | Operation blocking | deposit() reverts in emergency mode |
 | testFuzz_Mint_RevertIf_EmergencyMode | Operation blocking | mint() reverts in emergency mode |
 | testFuzz_EmergencyMode_TotalAssets_ReflectsVaultBalance | totalAssets in emergency | totalAssets = vault balance in emergency/recovery |
-| test_sweepDust_HappyPath | Dust sweeping | Remaining assets transferred after all redemptions |
-| test_sweepDust_RevertIf_NotEmergencyRole | Authorization check | Reverts without EMERGENCY_ROLE |
-| test_sweepDust_RevertIf_RecoveryNotActive | State validation | Reverts if recovery not active |
-| test_sweepDust_RevertIf_SharesRemaining | Shares check | Reverts with SweepNotReady if totalSupply > 0 |
-| test_sweepDust_RevertIf_ZeroReceiver | Zero receiver validation | Reverts with ZeroAddress |
-| test_sweepDust_RevertIf_ZeroBalance | Zero balance validation | Reverts with ZeroAmount if no dust |
-| test_sweepDust_EmitsEvent | Event validation | DustSwept event with recipient and amount |
 | test_getProtocolBalance_ReturnsCorrectBalance | Balance query | Returns accurate protocol balance |
 
 ---
