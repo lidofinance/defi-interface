@@ -568,7 +568,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         uint256 assets = shares.mulDiv(currentTotal + 1, adjustedSupply + 10 ** _decimalsOffset(), Math.Rounding.Floor);
 
         // Subtract 1 wei buffer for additional safety margin
-        return assets > 0 ? assets - 1 : 0;
+        return assets > 1 ? assets - 1 : 0;
     }
 
     /**
