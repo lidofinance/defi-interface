@@ -330,7 +330,7 @@
 | testFuzz_EmergencyRedeem_PartialRedeem | Partial redemption | Users can redeem portion of shares |
 | testFuzz_EmergencyRedeem_BurnsSharesCorrectly | Share burning | Shares burned, totalSupply decreased |
 | testFuzz_EmergencyRedeem_WithApproval | Delegated redemption | Works with approval mechanism |
-| testFuzz_EmergencyRedeem_RevertIf_RecoveryNotActive | State validation | Reverts if recovery not activated |
+| testFuzz_EmergencyRedeem_NormalMode | State validation | Works in normal mode |
 | testFuzz_EmergencyRedeem_RevertIf_ZeroShares | Zero shares validation | Reverts with ZeroAmount |
 | testFuzz_EmergencyRedeem_RevertIf_ZeroReceiver | Zero receiver validation | Reverts with ZeroAddress |
 | testFuzz_EmergencyRedeem_RevertIf_InsufficientShares | Balance check | Reverts with InsufficientShares |

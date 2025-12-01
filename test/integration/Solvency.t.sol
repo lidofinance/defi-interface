@@ -132,7 +132,7 @@ contract SolvencyTest is ERC4626AdapterTestBase {
             uint256 expectedAssets = userShares.mulDiv(snapshotAssets, snapshotSupply, Math.Rounding.Floor);
             if (expectedAssets == 0) continue;
             vm.prank(user);
-            uint256 received = vault.emergencyRedeem(userShares, user, user);
+            uint256 received = vault.redeem(userShares, user, user);
             totalDistributed += received;
             assertEq(received, expectedAssets);
             assertEq(vault.balanceOf(user), 0);
@@ -143,7 +143,7 @@ contract SolvencyTest is ERC4626AdapterTestBase {
 
         if (treasuryShares > 0) {
             vm.prank(treasury);
-            treasuryDistributed = vault.emergencyRedeem(treasuryShares, treasury, treasury);
+            treasuryDistributed = vault.redeem(treasuryShares, treasury, treasury);
         }
 
         uint256 vaultBalance = usdc.balanceOf(address(vault));

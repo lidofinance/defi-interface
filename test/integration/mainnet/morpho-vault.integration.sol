@@ -82,7 +82,7 @@ contract MorphoVaultIntegrationTest is Test {
 
     function _emergencyRedeem(address user, uint256 shares) internal returns (uint256 assets) {
         vm.prank(user);
-        assets = vault.emergencyRedeem(shares, user, user);
+        assets = vault.redeem(shares, user, user);
     }
 
     /// @notice Executes a full deposit, profit, withdrawal, and emergency cycle against each configured mainnet vault.

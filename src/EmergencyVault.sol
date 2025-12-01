@@ -321,9 +321,10 @@ abstract contract EmergencyVault is Vault {
     }
 
     /**
-     * @notice Redeem shares (blocked during emergency mode)
-     * @dev Reverts if emergency mode is active to preserve pro-rata fairness.
-     *      Users must use emergencyRedeem() after recovery is activated.
+     * @notice Redeem shares (blocked during emergency mode, allowed during recovery)
+     * @dev During recovery mode, automatically delegates to emergencyRedeem() to enable
+     *      standard IERC4626 interface for treasury and other integrations.
+     *      During emergency mode (before recovery), redemptions are blocked to preserve pro-rata fairness.
      */
     function redeem(uint256 sharesToRedeem, address assetReceiver, address shareOwner)
         public
@@ -331,6 +332,7 @@ abstract contract EmergencyVault is Vault {
         override
         returns (uint256)
     {
+        if (recoveryMode) return _emergencyRedeem(sharesToRedeem, assetReceiver, shareOwner);
         if (emergencyMode) revert DisabledDuringEmergencyMode();
         return super.redeem(sharesToRedeem, assetReceiver, shareOwner);
     }
@@ -338,10 +340,11 @@ abstract contract EmergencyVault is Vault {
     /* ========== EMERGENCY USER FUNCTIONS ========== */
 
     /**
-     * @notice Redeem shares for proportional assets during emergency recovery
-     * @dev Only available when recoveryMode == true.
+     * @notice Internal emergency redemption logic during recovery
+     * @dev Called by redeem() when recoveryMode is active.
      *      Uses snapshot ratio from recovery activation for fair pro-rata distribution.
      *      Burns shares and transfers proportional assets from vault balance.
+     *      Protected by nonReentrant to prevent reentrancy during token transfer.
      *
      *      Formula: assets = shares * recoveryAssets / recoverySupply
      * @param shares Amount of shares to redeem
@@ -349,8 +352,8 @@ abstract contract EmergencyVault is Vault {
      * @param owner Address whose shares are burned
      * @return assets Amount of assets transferred
      */
-    function emergencyRedeem(uint256 shares, address receiver, address owner)
-        external
+    function _emergencyRedeem(uint256 shares, address receiver, address owner)
+        internal
         nonReentrant
         returns (uint256 assets)
     {

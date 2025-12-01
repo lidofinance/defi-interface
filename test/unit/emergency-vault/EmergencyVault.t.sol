@@ -519,7 +519,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
         uint256 aliceBalanceBefore = usdc.balanceOf(alice);
 
         vm.prank(alice);
-        uint256 receivedAssets = vault.emergencyRedeem(redeemShares, alice, alice);
+        uint256 receivedAssets = vault.redeem(redeemShares, alice, alice);
 
         assertEq(receivedAssets, expectedAssets);
         assertEq(usdc.balanceOf(alice) - aliceBalanceBefore, receivedAssets);
@@ -558,13 +558,13 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
         uint256 recoverySupply = vault.recoverySupply();
 
         vm.prank(alice);
-        uint256 aliceReceived = vault.emergencyRedeem(aliceShares, alice, alice);
+        uint256 aliceReceived = vault.redeem(aliceShares, alice, alice);
 
         vm.prank(bob);
-        uint256 bobReceived = vault.emergencyRedeem(bobShares, bob, bob);
+        uint256 bobReceived = vault.redeem(bobShares, bob, bob);
 
         vm.prank(charlie);
-        uint256 charlieReceived = vault.emergencyRedeem(charlieShares, charlie, charlie);
+        uint256 charlieReceived = vault.redeem(charlieShares, charlie, charlie);
 
         uint256 expectedAlice = aliceShares.mulDiv(recoveryAssets, recoverySupply, Math.Rounding.Floor);
         uint256 expectedBob = bobShares.mulDiv(recoveryAssets, recoverySupply, Math.Rounding.Floor);
@@ -617,10 +617,10 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
         uint256 expectedBob = bobShares.mulDiv(recoveryAssets, recoverySupply, Math.Rounding.Floor);
 
         vm.prank(bob);
-        uint256 bobReceived = vault.emergencyRedeem(bobShares, bob, bob);
+        uint256 bobReceived = vault.redeem(bobShares, bob, bob);
 
         vm.prank(alice);
-        uint256 aliceReceived = vault.emergencyRedeem(aliceShares, alice, alice);
+        uint256 aliceReceived = vault.redeem(aliceShares, alice, alice);
 
         assertEq(aliceReceived, expectedAlice);
         assertEq(bobReceived, expectedBob);
@@ -659,7 +659,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
         vm.assume(expectedFirst > 0);
 
         vm.prank(alice);
-        uint256 firstRedeem = vault.emergencyRedeem(redeemShares, alice, alice);
+        uint256 firstRedeem = vault.redeem(redeemShares, alice, alice);
 
         uint256 remainingShares = vault.balanceOf(alice);
         assertEq(remainingShares, shares - redeemShares);
@@ -669,7 +669,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
         vm.assume(expectedSecond > 0);
 
         vm.prank(alice);
-        uint256 secondRedeem = vault.emergencyRedeem(remainingShares, alice, alice);
+        uint256 secondRedeem = vault.redeem(remainingShares, alice, alice);
 
         assertEq(vault.balanceOf(alice), 0);
         assertGt(firstRedeem + secondRedeem, 0);
@@ -693,7 +693,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
         uint256 totalSupplyBefore = vault.totalSupply();
 
         vm.prank(alice);
-        vault.emergencyRedeem(shares, alice, alice);
+        vault.redeem(shares, alice, alice);
 
         assertEq(vault.totalSupply(), totalSupplyBefore - shares);
         assertEq(vault.balanceOf(alice), 0);
@@ -727,25 +727,28 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
         uint256 bobBalanceBefore = usdc.balanceOf(bob);
 
         vm.prank(bob);
-        uint256 assets = vault.emergencyRedeem(redeemShares, bob, alice);
+        uint256 assets = vault.redeem(redeemShares, bob, alice);
 
         assertEq(usdc.balanceOf(bob) - bobBalanceBefore, assets);
         assertEq(vault.balanceOf(alice), shares - redeemShares);
         assertEq(vault.allowance(alice, bob), 0);
     }
 
-    /// @notice Fuzzes that emergency redeem reverts when recovery not active.
-    /// @dev Verifies the revert protects against recovery not active.
-    function testFuzz_EmergencyRedeem_RevertIf_RecoveryNotActive(uint96 depositAmount) public {
+    /// @notice Fuzzes that redeem works normally when recovery is not active.
+    /// @dev Verifies that standard redeem() works in normal mode (not emergency/recovery).
+    function testFuzz_EmergencyRedeem_NormalMode(uint96 depositAmount) public {
         uint256 amount = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
         usdc.mint(alice, amount);
 
         vm.prank(alice);
         uint256 shares = vault.deposit(amount, alice);
 
-        vm.expectRevert(EmergencyVault.RecoveryNotActive.selector);
+        // In normal mode (not emergency, not recovery), redeem should work normally
         vm.prank(alice);
-        vault.emergencyRedeem(shares, alice, alice);
+        uint256 assets = vault.redeem(shares, alice, alice);
+
+        assertGt(assets, 0);
+        assertEq(vault.balanceOf(alice), 0);
     }
 
     /// @notice Fuzzes that emergency redeem reverts when zero shares.
@@ -765,7 +768,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
 
         vm.expectRevert(Vault.ZeroAmount.selector);
         vm.prank(alice);
-        vault.emergencyRedeem(0, alice, alice);
+        vault.redeem(0, alice, alice);
     }
 
     /// @notice Fuzzes that emergency redeem reverts when zero receiver.
@@ -785,7 +788,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
 
         vm.expectRevert(Vault.ZeroAddress.selector);
         vm.prank(alice);
-        vault.emergencyRedeem(shares, address(0), alice);
+        vault.redeem(shares, address(0), alice);
     }
 
     /// @notice Fuzzes that emergency redeem reverts when insufficient shares.
@@ -807,7 +810,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
 
         vm.expectRevert(abi.encodeWithSelector(Vault.InsufficientShares.selector, requestShares, shares));
         vm.prank(alice);
-        vault.emergencyRedeem(requestShares, alice, alice);
+        vault.redeem(requestShares, alice, alice);
     }
 
     /// @notice Fuzzes that emergency redeem reverts when no approval.
@@ -827,7 +830,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
 
         vm.expectRevert();
         vm.prank(bob);
-        vault.emergencyRedeem(shares, bob, alice);
+        vault.redeem(shares, bob, alice);
     }
 
     /* ========== BLOCKED OPERATIONS DURING EMERGENCY TESTS ========== */
@@ -930,7 +933,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
         uint256 expectedAssets = shares.mulDiv(vault.recoveryAssets(), vault.recoverySupply(), Math.Rounding.Floor);
 
         vm.prank(alice);
-        uint256 receivedAssets = vault.emergencyRedeem(shares, alice, alice);
+        uint256 receivedAssets = vault.redeem(shares, alice, alice);
 
         assertEq(receivedAssets, expectedAssets);
     }
@@ -953,7 +956,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
         uint256 minShares = 10 ** vault.OFFSET();
 
         vm.prank(alice);
-        uint256 assets = vault.emergencyRedeem(minShares, alice, alice);
+        uint256 assets = vault.redeem(minShares, alice, alice);
 
         assertGt(assets, 0);
     }
@@ -983,7 +986,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
 
         vm.expectRevert(Vault.ZeroAmount.selector);
         vm.prank(alice);
-        vault.emergencyRedeem(tinyShares, alice, alice);
+        vault.redeem(tinyShares, alice, alice);
     }
 
     /// @notice Fuzzes that emergency mode total assets reflects vault balance.
@@ -1071,7 +1074,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
         vault.activateRecovery(usdc.balanceOf(address(vault)));
 
         vm.prank(alice);
-        uint256 received = vault.emergencyRedeem(shares, alice, alice);
+        uint256 received = vault.redeem(shares, alice, alice);
         assertGt(received, 0);
         assertEq(vault.totalSupply(), 0);
 
@@ -1134,7 +1137,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
         vault.activateRecovery(usdc.balanceOf(address(vault)));
 
         vm.prank(alice);
-        vault.emergencyRedeem(shares, alice, alice);
+        vault.redeem(shares, alice, alice);
 
         assertEq(usdc.balanceOf(address(vault)), 0);
 
@@ -1159,7 +1162,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
         vault.activateRecovery(usdc.balanceOf(address(vault)));
 
         vm.prank(alice);
-        vault.emergencyRedeem(shares, alice, alice);
+        vault.redeem(shares, alice, alice);
 
         uint256 leftover = bound(uint256(dustAmount), 1, amount);
         usdc.mint(address(vault), leftover);
@@ -1238,5 +1241,61 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
 
         // Verify: emergencySnapshot = vaultBalance + protocolBalance (no loss)
         assertApproxEqAbs(emergencySnapshot, vaultBalance + protocolBalance, 2);
+    }
+
+    /// @notice Tests that treasury (RewardDistributor) can redeem shares during recovery mode.
+    /// @dev Validates that accumulated fee shares can be redeemed through standard redeem() interface.
+    function test_TreasuryRedeem_DuringRecoveryMode() public {
+        // Setup: Create deposits that generate fees
+        uint256 depositAmount = vault.MIN_FIRST_DEPOSIT() * 1000;
+
+        // Alice deposits
+        usdc.mint(alice, depositAmount);
+        vm.prank(alice);
+        vault.deposit(depositAmount, alice);
+
+        // Simulate profit to generate fees
+        uint256 profitAmount = depositAmount / 10; // 10% profit
+        usdc.mint(address(targetVault), profitAmount);
+
+        // Bob deposits (triggers fee harvest)
+        usdc.mint(bob, depositAmount);
+        vm.prank(bob);
+        vault.deposit(depositAmount, bob);
+
+        // Verify treasury has fee shares
+        uint256 treasuryShares = vault.balanceOf(treasury);
+        assertGt(treasuryShares, 0, "Treasury should have fee shares");
+
+        // Enter emergency mode
+        vm.prank(emergencyAdmin);
+        vault.emergencyWithdraw();
+
+        // Activate recovery
+        uint256 vaultBalance = usdc.balanceOf(address(vault));
+        vm.prank(emergencyAdmin);
+        vault.activateRecovery(vaultBalance);
+
+        // Verify recovery mode is active
+        assertTrue(vault.recoveryMode(), "Recovery mode should be active");
+
+        // Treasury redeems shares through standard IERC4626 interface
+        uint256 treasuryBalanceBefore = usdc.balanceOf(treasury);
+
+        vm.prank(treasury);
+        uint256 assetsReceived = vault.redeem(treasuryShares, treasury, treasury);
+
+        // Verify redemption succeeded
+        assertGt(assetsReceived, 0, "Treasury should receive assets");
+        assertEq(vault.balanceOf(treasury), 0, "Treasury shares should be burned");
+        assertEq(usdc.balanceOf(treasury), treasuryBalanceBefore + assetsReceived, "Treasury should receive assets");
+
+        // Verify assets are calculated correctly (pro-rata)
+        uint256 expectedAssets = treasuryShares.mulDiv(
+            vault.recoveryAssets(),
+            vault.recoverySupply(),
+            Math.Rounding.Floor
+        );
+        assertEq(assetsReceived, expectedAssets, "Assets should match pro-rata calculation");
     }
 }

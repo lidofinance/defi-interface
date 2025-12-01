@@ -4,10 +4,13 @@ pragma solidity 0.8.30;
 import {TestConfig} from "test/utils/TestConfig.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {RewardDistributor} from "src/RewardDistributor.sol";
+import {ERC4626Adapter} from "src/adapters/ERC4626Adapter.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
 import {MockVault} from "test/mocks/MockVault.sol";
+import {MockERC4626Vault} from "test/mocks/MockERC4626Vault.sol";
 
 contract RewardDistributorTest is TestConfig {
     MockERC20 internal asset;
@@ -312,6 +315,64 @@ contract RewardDistributorTest is TestConfig {
         assertEq(assetsRedeemed, depositAmount);
         assertEq(asset.balanceOf(address(distributor)), depositAmount);
         assertEq(vault.balanceOf(address(distributor)), 0);
+    }
+
+    /// @notice Ensures distributor can redeem treasury shares after emergency + recovery cycle.
+    /// @dev Flow: deposit -> harvest -> emergency mode -> recovery -> distributor redeem.
+    function test_Redeem_DistributorAfterEmergencyRecovery() public {
+        uint8 decimals = _assetDecimals();
+        MockERC20 recoveryAsset = new MockERC20("Recovery USD", "rUSD", decimals);
+        MockERC4626Vault target = new MockERC4626Vault(recoveryAsset, "Target Vault", "tVAULT", OFFSET);
+        RewardDistributor distributor = _deployDefaultDistributor();
+        ERC4626Adapter emergencyVault = new ERC4626Adapter(
+            address(recoveryAsset),
+            address(target),
+            address(distributor),
+            REWARD_FEE,
+            OFFSET,
+            "Emergency Adapter",
+            "eADPT",
+            address(this)
+        );
+
+        address depositor = makeAddr("recoveryDepositor");
+        uint256 depositAmount = 1_000_000 * (10 ** decimals);
+        recoveryAsset.mint(depositor, depositAmount);
+
+        vm.startPrank(depositor);
+        recoveryAsset.approve(address(emergencyVault), depositAmount);
+        emergencyVault.deposit(depositAmount, depositor);
+        vm.stopPrank();
+
+        uint256 profit = depositAmount / 10;
+        recoveryAsset.mint(address(target), profit);
+
+        emergencyVault.harvestFees();
+
+        uint256 distributorShares = emergencyVault.balanceOf(address(distributor));
+        assertGt(distributorShares, 0, "Treasury distributor should hold fee shares");
+
+        emergencyVault.activateEmergencyMode();
+        emergencyVault.emergencyWithdraw();
+
+        uint256 vaultBalance = recoveryAsset.balanceOf(address(emergencyVault));
+        assertGt(vaultBalance, 0, "Vault should hold assets for recovery");
+
+        emergencyVault.activateRecovery(vaultBalance);
+        assertTrue(emergencyVault.recoveryMode(), "Recovery mode should be active");
+
+        vm.prank(manager);
+        uint256 assetsRedeemed = distributor.redeem(address(emergencyVault));
+
+        uint256 expectedAssets = Math.mulDiv(
+            distributorShares, emergencyVault.recoveryAssets(), emergencyVault.recoverySupply(), Math.Rounding.Floor
+        );
+
+        assertEq(assetsRedeemed, expectedAssets, "Distributor should redeem pro-rata assets");
+        assertEq(emergencyVault.balanceOf(address(distributor)), 0, "Distributor shares should be burned");
+        assertEq(
+            recoveryAsset.balanceOf(address(distributor)), expectedAssets, "Distributor should receive assets"
+        );
     }
 
     /* ========== HELPERS ========== */
