@@ -401,6 +401,36 @@ contract RewardDistributorTest is TestConfig {
         assertEq(vault.balanceOf(address(distributor)), 0);
     }
 
+    /// @notice Ensures redeem respects vault maxRedeem limit and only redeems allowed shares.
+    function test_Redeem_RespectsMaxRedeemLimit() public {
+        RewardDistributor distributor = _deployDefaultDistributor();
+        uint256 depositAmount = 120_000e6;
+        uint256 mintedShares = _depositSharesForDistributor(distributor, depositAmount);
+
+        uint256 allowedShares = mintedShares / 3;
+        assertGt(allowedShares, 0);
+
+        vm.mockCall(
+            address(vault),
+            abi.encodeWithSelector(MockERC4626Vault.maxRedeem.selector, address(distributor)),
+            abi.encode(allowedShares)
+        );
+
+        uint256 expectedAssets = vault.convertToAssets(allowedShares);
+
+        vm.expectEmit(true, true, false, true);
+        emit RewardDistributor.VaultRedeemed(address(vault), allowedShares, expectedAssets);
+
+        vm.prank(admin);
+        uint256 assetsRedeemed = distributor.redeem(address(vault));
+
+        vm.clearMockedCalls();
+
+        assertEq(assetsRedeemed, expectedAssets);
+        assertEq(asset.balanceOf(address(distributor)), expectedAssets);
+        assertEq(vault.balanceOf(address(distributor)), mintedShares - allowedShares);
+    }
+
     /// @notice Ensures distributor can redeem treasury shares after emergency + recovery cycle.
     /// @dev Flow: deposit -> harvest -> emergency mode -> recovery -> distributor redeem.
     function test_Redeem_DistributorAfterEmergencyRecovery() public {

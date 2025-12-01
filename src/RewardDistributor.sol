@@ -176,7 +176,7 @@ contract RewardDistributor is AccessControl {
      */
     function redeem(address vault) external onlyRole(MANAGER_ROLE) returns (uint256 assets) {
         IERC4626 vaultContract = IERC4626(vault);
-        uint256 shares = vaultContract.balanceOf(address(this));
+        uint256 shares = vaultContract.maxRedeem(address(this));
 
         if (shares == 0) {
             revert NoShares();
