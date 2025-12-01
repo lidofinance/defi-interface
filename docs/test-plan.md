@@ -286,6 +286,17 @@
 
 ---
 
+### Vault.PreviewAccuracy.t.sol (4 tests)
+
+| Test Name | What It Tests | Key Checks |
+|-----------|---------------|------------|
+| test_PreviewDeposit_ExactMatch | Preview accuracy with profit (deposit) | Fuzz test: previewDeposit() exactly matches deposit() even after 10% profit injection, tests all OFFSET values (1-22), validates formula correctness with fee harvesting and ratio disruption |
+| test_PreviewMint_ExactMatch | Preview accuracy with profit (mint) | Fuzz test: previewMint() exactly matches mint() even after 10% profit injection, tests all OFFSET values (1-22), validates that assets required match preview despite share price changes |
+| test_PreviewRedeem_ExactMatch | Preview accuracy with profit (redeem) | Fuzz test: previewRedeem() exactly matches redeem() even after 10% profit injection, tests all OFFSET values (1-22), validates pro-rata asset distribution with fee dilution |
+| test_PreviewWithdraw_ExactMatch | Preview accuracy with profit (withdraw) | Fuzz test: previewWithdraw() exactly matches withdraw() even after 10% profit injection, tests all OFFSET values (1-22), validates shares burned match preview despite exchange rate changes |
+
+---
+
 ## EmergencyVault Tests
 
 ### EmergencyVault.t.sol (48 tests)

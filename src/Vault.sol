@@ -239,7 +239,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
 
         _mint(shareReceiver, sharesMinted);
 
-        lastTotalAssets = totalAssets();
+        lastTotalAssets += assetsToDeposit;
 
         emit Deposited(msg.sender, shareReceiver, assetsToDeposit, sharesMinted);
     }
@@ -282,7 +282,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         if (protocolSharesReceived == 0) revert ZeroAmount();
 
         _mint(shareReceiver, sharesToMint);
-        lastTotalAssets = totalAssets();
+        lastTotalAssets += assetsRequired;
 
         emit Deposited(msg.sender, shareReceiver, assetsRequired, sharesToMint);
     }
@@ -590,7 +590,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         uint256 feeShares = _calculateFeeShares(currentTotal, supply);
         uint256 adjustedSupply = supply + feeShares;
 
-        return assets.mulDiv(adjustedSupply, currentTotal, Math.Rounding.Floor);
+        shares = assets.mulDiv(adjustedSupply + 10 ** OFFSET, currentTotal + 1, Math.Rounding.Floor);
     }
 
     /**
@@ -612,7 +612,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         uint256 feeShares = _calculateFeeShares(currentTotal, supply);
         uint256 adjustedSupply = supply + feeShares;
 
-        return shares.mulDiv(currentTotal, adjustedSupply, Math.Rounding.Ceil);
+        assets = shares.mulDiv(currentTotal + 1, adjustedSupply + 10 ** OFFSET, Math.Rounding.Ceil);
     }
 
     /**
@@ -634,23 +634,13 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         uint256 feeShares = _calculateFeeShares(currentTotal, supply);
         uint256 adjustedSupply = supply + feeShares;
 
-        return shares.mulDiv(currentTotal, adjustedSupply, Math.Rounding.Floor);
+        assets = shares.mulDiv(currentTotal + 1, adjustedSupply + 10 ** OFFSET, Math.Rounding.Floor);
     }
 
     /**
      * @notice Simulates the amount of shares that would be burned to withdraw given assets
      * @dev Overrides ERC4626 to account for pending fees that will be harvested during withdrawal.
      *      This ensures the preview matches the actual execution in withdraw().
-     *
-     *      The formula replicates OpenZeppelin's _convertToShares() behavior after fee harvest:
-     *      - adjustedSupply = supply + feeShares (simulates the supply after _harvestFees())
-     *      - The "+ 10 ** OFFSET" term is part of ERC4626 inflation attack protection
-     *      - The "+ 1" on totalAssets prevents division by zero in edge cases
-     *
-     *      Formula: shares = assets * (adjustedSupply + 10^offset) / (totalAssets + 1)
-     *
-     *      This matches what withdraw() does: _harvestFees() then _convertToShares(assets, Ceil)
-     *
      *      Per ERC4626: MUST return "no fewer than" the actual shares that would be burned.
      * @param assets Amount of assets to withdraw
      * @return shares Amount of shares that would be burned (accounting for pending fee dilution)
