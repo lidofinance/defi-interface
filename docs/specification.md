@@ -57,7 +57,7 @@ This approach introduces specific economic constraints regarding the underlying 
 
 Conversely, this logic effectively captures **Instant Rewards**. Because `lastTotalAssets` increases only by the explicitly deposited amount, any immediate surplus value generated in the underlying protocol (e.g., share appreciation or airdrops) is correctly recognized as profit. It is captured by the `_harvestFees` mechanism during the very next interaction, ensuring these rewards are subject to performance fees rather than being distributed as free yield.
 
-### Deterministic Crisis Management (The "Pumpkin" Philosophy)
+### Deterministic Crisis Management
 
 To handle critical failures such as hacks or **Emergency Withdrawal Insolvency**, the system distinguishes between temporary operational pauses and permanent solvency crises.
 
