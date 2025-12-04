@@ -19,7 +19,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
     event EmergencyModeActivated(uint256 emergencyAssetsSnapshot, uint256 activationTimestamp);
     event EmergencyWithdrawal(uint256 recovered, uint256 remaining);
     event RecoveryActivated(
-        uint256 recoveryAssets, uint256 recoverySupply, uint256 protocolBalance, uint256 implicitLoss
+        uint256 declaredRecoverableAmount, uint256 recoverySupply, uint256 protocolBalance, uint256 implicitLoss
     );
 
     function setUp() public override {

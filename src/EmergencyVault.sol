@@ -138,13 +138,13 @@ abstract contract EmergencyVault is Vault {
 
     /**
      * @notice Emitted when emergency recovery is activated
-     * @param recoveryAssets Total assets available for claims (vault balance)
+     * @param declaredRecoverableAmount Amount declared by admin (may differ from actual on-chain balance)
      * @param recoverySupply Total shares at recovery
      * @param protocolBalance Amount stuck in protocol due to liquidity constraints
      * @param implicitLoss Value lost compared to emergencyTotalAssets snapshot
      */
     event RecoveryActivated(
-        uint256 recoveryAssets, uint256 recoverySupply, uint256 protocolBalance, uint256 implicitLoss
+        uint256 declaredRecoverableAmount, uint256 recoverySupply, uint256 protocolBalance, uint256 implicitLoss
     );
 
     /* ========== ERRORS ========== */
@@ -161,7 +161,10 @@ abstract contract EmergencyVault is Vault {
     /// @notice Thrown when attempting to activate emergency mode more than once
     error EmergencyModeAlreadyActive();
 
-    /// @notice Thrown when declared recoverable amount doesn't match vault balance
+    /// @notice Thrown when declared recoverable amount exceeds the tokens the vault actually holds
+    /// @dev Protects against over-reporting in activateRecovery by ensuring declared <= IERC20(asset()).balanceOf
+    /// @param declared Amount supplied to activateRecovery
+    /// @param actual Real balance available for recovery
     error RecoverableAmountMismatch(uint256 declared, uint256 actual);
 
     /// @notice Thrown when trying to activate recovery without emergency mode being active
