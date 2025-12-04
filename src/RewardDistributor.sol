@@ -121,7 +121,7 @@ contract RewardDistributor is AccessControl {
      * @notice Initializes the reward distributor with fixed recipients and allocations
      * @dev Recipients and their allocations are immutable after deployment.
      *      The manager receives both DEFAULT_ADMIN_ROLE and MANAGER_ROLE.
-     * @param admin_ Address that will have permission to redeem, distribute rewards and change recipients
+     * @param admin_ Address that will receive DEFAULT_ADMIN_ROLE, MANAGER_ROLE, and RECIPIENTS_MANAGER_ROLE
      * @param recipients_ Array of recipient addresses
      * @param basisPoints_ Array of allocation percentages in basis points (must sum to 10,000)
      */

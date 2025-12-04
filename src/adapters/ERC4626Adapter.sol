@@ -158,7 +158,8 @@ contract ERC4626Adapter is EmergencyVault {
      * @notice Returns maximum shares that can be redeemed
      * @dev Checks if the target vault is active/liquid. In recovery mode ignores target vault.
      * @param owner The address of the share owner
-    */
+     * @return Maximum shares that can be redeemed by owner (limited by target vault liquidity or user balance)
+     */
     function maxRedeem(address owner) public view override returns (uint256) {
         uint256 userShares = balanceOf(owner);
         if (recoveryMode) return userShares;

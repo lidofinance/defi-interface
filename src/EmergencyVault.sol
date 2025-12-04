@@ -214,14 +214,14 @@ abstract contract EmergencyVault is Vault {
      * @dev Snapshots vault state and enables pro-rata redemptions through emergencyRedeem().
      *
      *      The declaredRecoverableAmount parameter prevents accidental activation - admin must
-     *      explicitly confirm the recoverable amount, which must match vault's actual balance.
+     *      explicitly confirm the recoverable amount.
      *
-     *      Supports partial recovery scenarios (see contract-level natspec "Supported Scenarios").
+     *      Supports partial recovery scenarios.
      *      If protocolBalance > 0, funds remain stuck but does NOT revert - admin explicitly
      *      accepts this by declaring the recoverable amount.
      *
      *      Execution flow:
-     *      1. Validates declaredRecoverableAmount equals vault balance (safety check)
+     *      1. Validates declaredRecoverableAmount is not bigger than vault balance (safety check)
      *      2. Harvests pending fees to ensure fair distribution
      *      3. Snapshots recoveryAssets and recoverySupply for immutable pro-rata calculation
      *
@@ -229,7 +229,7 @@ abstract contract EmergencyVault is Vault {
      *
      *      Requirements:
      *      - Emergency mode must be active (funds withdrawn from protocol)
-     *      - declaredRecoverableAmount must equal vault's asset balance
+     *      - declaredRecoverableAmount must be less or equal vault's asset balance
      *      - Total supply must be > 0 (cannot recover to empty vault)
      *      - Only callable by EMERGENCY_ROLE
      */
