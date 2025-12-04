@@ -126,7 +126,7 @@ contract ERC4626Adapter is EmergencyVault {
     /**
      * @notice Returns maximum assets that can be deposited for a given address
      * @dev Respects pause state plus target vault capacity limits.
-     * @return Maximum assets that can be deposited (0 if paused, otherwise target vault capacity)
+     * @return Maximum assets that can be deposited (0 if paused or in emergency mode, otherwise target vault capacity)
      */
     function maxDeposit(address /* user */ ) public view override returns (uint256) {
         if (paused() || emergencyMode) return 0;
@@ -136,7 +136,7 @@ contract ERC4626Adapter is EmergencyVault {
     /**
      * @notice Returns maximum shares that can be minted for a given address
      * @dev Converts available deposit capacity to vault shares.
-     * @return Maximum shares that can be minted (0 if paused, otherwise converted from target vault capacity)
+     * @return Maximum shares that can be minted (0 if paused or in emergency mode, otherwise converted from target vault capacity)
      */
     function maxMint(address /* user */ ) public view override returns (uint256) {
         if (paused() || emergencyMode) return 0;
@@ -148,9 +148,10 @@ contract ERC4626Adapter is EmergencyVault {
      * @notice Returns maximum assets that can be withdrawn by owner
      * @dev Minimum of user share value and target vault liquidity.
      * @param owner Address to check maximum withdrawal for
-     * @return Maximum assets withdrawable by owner (limited by either share balance or target vault liquidity)
+     * @return Maximum assets withdrawable by owner (0 if in emergency mode or limited by either share balance or target vault liquidity)
      */
     function maxWithdraw(address owner) public view override returns (uint256) {
+        if (emergencyMode) return 0;
         return Math.min(super.maxWithdraw(owner), TARGET_VAULT.maxWithdraw(address(this)));
     }
 

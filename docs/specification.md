@@ -583,6 +583,24 @@ function maxRedeem(address owner) public view override returns (uint256)
 **Notes:**
 
   * Overrides base logic to allow full exit during Recovery Mode, ignoring target vault limits (since assets are already pulled).
+  
+#### `maxWithdraw`
+
+Returns maximum assets that can be withdrawn.
+
+```solidity
+function maxWithdraw(address owner) public view override returns (uint256)
+```
+
+**Returns:**
+
+  * Standard operation: Minimum of user assets and target liquidity.
+  * Recovery Mode: Returns full user assets balance.
+  * Emergency Mode: returns 0.
+
+**Notes:**
+
+  * Respects emergency state: returns 0 if the vault has `emergencyMode` active.
 
 #### `_depositToProtocol`
 

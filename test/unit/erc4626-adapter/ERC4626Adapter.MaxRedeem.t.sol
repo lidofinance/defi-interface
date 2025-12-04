@@ -543,4 +543,30 @@ contract ERC4626AdapterMaxRedeemTest is ERC4626AdapterTestBase {
         assertLe(maxRedeem1, maxRedeem2, "MaxRedeem should not decrease when liquidity increases");
         assertLe(maxRedeem2, maxRedeem3, "MaxRedeem should not decrease when liquidity increases further");
     }
+
+    function test_MaxWithdraw_ReturnsZeroDuringEmergencyMode() public {
+        uint256 depositAmount = 100_000e6;
+        vm.prank(alice);
+        vault.deposit(depositAmount, alice);
+
+        vm.prank(address(this));
+        vault.activateEmergencyMode();
+
+        uint256 maxWithdraw = vault.maxWithdraw(alice);
+        assertEq(maxWithdraw, 0, "MaxWithdraw should be zero when emergency mode is active");
+    }
+
+    /// @notice Ensures maxWithdraw respects target vault liquidity limits.
+    /// @dev Even without emergency mode, withdrawals are capped by TARGET_VAULT.maxWithdraw.
+    function test_MaxWithdraw_RespectsTargetVaultLiquidityLimit() public {
+        uint256 depositAmount = 100_000e6;
+        vm.prank(alice);
+        vault.deposit(depositAmount, alice);
+
+        uint256 liquidityLimit = 40_000e6;
+        targetVault.setLiquidityCap(liquidityLimit);
+
+        uint256 maxWithdraw = vault.maxWithdraw(alice);
+        assertEq(maxWithdraw, liquidityLimit, "MaxWithdraw should not exceed target vault liquidity");
+    }
 }
