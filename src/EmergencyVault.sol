@@ -190,7 +190,7 @@ abstract contract EmergencyVault is Vault {
         if (!emergencyMode) activateEmergencyMode();
 
         recovered = _emergencyWithdrawFromProtocol(address(this));
-        uint256 remaining = getProtocolBalance();
+        uint256 remaining = _getProtocolBalance();
 
         emit EmergencyWithdrawal(recovered, remaining);
     }
@@ -254,7 +254,7 @@ abstract contract EmergencyVault is Vault {
         uint256 supply = totalSupply();
         if (supply == 0) revert ZeroSupply();
 
-        uint256 protocolBalance = getProtocolBalance();
+        uint256 protocolBalance = _getProtocolBalance();
         uint256 totalRecoverable = declaredRecoverableAmount + protocolBalance;
         uint256 implicitLoss = emergencyTotalAssets > totalRecoverable ? emergencyTotalAssets - totalRecoverable : 0;
 
