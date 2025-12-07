@@ -331,6 +331,23 @@ contract ERC4626AdapterMaxRedeemTest is ERC4626AdapterTestBase {
         assertGt(maxRedeemAfter, maxRedeemBefore, "MaxRedeem should increase after recovery activation");
     }
 
+    /* ========== EMERGENCY MODE TESTS ========== */
+
+    /// @notice Tests that maxRedeem returns zero while mode is active
+    function test_MaxRedeem_ReturnsZeroSharesInEmergencyMode() public {
+        // Alice deposits 100k USDC
+        vm.prank(alice);
+        vault.deposit(100_000e6, alice);
+
+        vault.balanceOf(alice);
+
+        // Trigger emergency
+        vault.emergencyWithdraw();
+
+        uint256 maxRedeemable = vault.maxRedeem(alice);
+        assertEq(maxRedeemable, 0, "MaxRedeem should return zero in emergency mode");
+    }
+
     /* ========== FUZZ TESTS ========== */
 
     /// @notice Fuzz test: maxRedeem with different user balances
