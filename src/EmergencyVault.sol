@@ -320,6 +320,11 @@ abstract contract EmergencyVault is Vault {
         return super.redeem(sharesToRedeem, assetReceiver, shareOwner);
     }
 
+    function harvestFees() external override nonReentrant {
+        if (emergencyMode) revert DisabledDuringEmergencyMode();
+        _harvestFees();
+    }
+
     /* ========== EMERGENCY USER FUNCTIONS ========== */
 
     /**

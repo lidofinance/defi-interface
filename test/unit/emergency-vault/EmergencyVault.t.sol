@@ -846,6 +846,46 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
 
     /* ========== BLOCKED OPERATIONS DURING EMERGENCY TESTS ========== */
 
+    /// @notice Tests that harvestFees reverts when in recovery mode.
+    /// @dev Verifies that harvestFees cannot be called during recovery mode.
+    function test_HarvestFees_RevertsIf_RecoveryMode() public {
+        uint256 amount = scaleAmount(1_000_000);
+        usdc.mint(alice, amount);
+
+        vm.prank(alice);
+        vault.deposit(amount, alice);
+
+        vm.prank(emergencyAdmin);
+        vault.emergencyWithdraw();
+
+        vm.prank(emergencyAdmin);
+        vault.activateRecovery(usdc.balanceOf(address(vault)));
+
+        assertTrue(vault.recoveryMode());
+
+        vm.expectRevert(EmergencyVault.DisabledDuringEmergencyMode.selector);
+        vault.harvestFees();
+    }
+
+    /// @notice Tests that harvestFees reverts when in emergency mode.
+    /// @dev Verifies that harvestFees cannot be called during emergency mode (before recovery).
+    function test_HarvestFees_RevertsIf_EmergencyMode() public {
+        uint256 amount = scaleAmount(1_000_000);
+        usdc.mint(alice, amount);
+
+        vm.prank(alice);
+        vault.deposit(amount, alice);
+
+        vm.prank(emergencyAdmin);
+        vault.emergencyWithdraw();
+
+        assertTrue(vault.emergencyMode());
+        assertFalse(vault.recoveryMode());
+
+        vm.expectRevert(EmergencyVault.DisabledDuringEmergencyMode.selector);
+        vault.harvestFees();
+    }
+
     /// @notice Fuzzes that withdraw reverts when emergency mode.
     /// @dev Verifies the revert protects against emergency mode.
     function testFuzz_Withdraw_RevertIf_EmergencyMode(uint96 depositAmount) public {
