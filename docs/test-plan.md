@@ -10,7 +10,7 @@
 
 ## Vault Tests
 
-### Vault.Constructor.t.sol (17 tests)
+### Vault.Constructor.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -34,7 +34,7 @@
 
 ---
 
-### Vault.Initialization.t.sol (6 tests)
+### Vault.Initialization.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -47,7 +47,7 @@
 
 ---
 
-### Vault.Deposit.t.sol (27 tests)
+### Vault.Deposit.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -81,7 +81,7 @@
 
 ---
 
-### Vault.Withdraw.t.sol (37 tests)
+### Vault.Withdraw.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -125,7 +125,7 @@
 
 ---
 
-### Vault.Fees.t.sol (26 tests)
+### Vault.Fees.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -154,11 +154,10 @@
 | testFuzz_HarvestFees_DifferentRewardRates | Fuzz fee rates 0-20% | Correct fees for any rate, 0% = no shares |
 | testFuzz_HarvestFees_MultipleHarvests | Fuzz sequential harvests | Treasury accumulates, total within tolerance |
 | testFuzz_HarvestFees_NoFeeWhenZeroRewardFee | Fuzz with 0% fee | No shares minted regardless of profit |
-| test_SetTreasury_HarvestsFeesBeforeUpdate | Treasury migration | Fees harvested to old treasury before address update |
 
 ---
 
-### Vault.AccessControl.t.sol (11 tests)
+### Vault.AccessControl.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -176,7 +175,7 @@
 
 ---
 
-### Vault.Pausable.t.sol (16 tests)
+### Vault.Pausable.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -199,7 +198,7 @@
 
 ---
 
-### Vault.Config.t.sol (14 tests)
+### Vault.Config.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -217,11 +216,12 @@
 | test_SetTreasury_RevertIf_ZeroAddress | Input validation | Reverts with ZeroAddress for zero treasury |
 | test_SetTreasury_RevertIf_SameAddress | No-op prevention | Reverts with InvalidTreasuryAddress if address is unchanged |
 | test_SetTreasury_RevertIf_NotFeeManager | Access control | Only MANAGER_ROLE can update treasury |
+| test_SetTreasury_HarvestsFeesBeforeUpdate | Treasury migration | Fees harvested to old treasury before address update |
 | test_SetTreasury_DoesNotTransferExistingShares | Fee accounting | Legacy treasury shares remain with old address, future fees go to new |
 
 ---
 
-### Vault.Permit.t.sol (7 tests)
+### Vault.Permit.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -235,7 +235,34 @@
 
 ---
 
-### Vault.EdgeCases.t.sol (13 tests)
+### Vault.Recover.t.sol
+
+| Test Name | What It Tests | Key Checks |
+|-----------|---------------|------------|
+| test_RecoverERC20_Basic | Basic token recovery | MANAGER_ROLE recovers accidentally sent ERC20 tokens, event emitted |
+| test_RecoverERC20_MultipleTokens | Multiple token recovery | Can recover different tokens in sequence |
+| test_RecoverERC20_LargeAmount | Large amount recovery | Handles large token amounts correctly |
+| test_RecoverERC20_EmitsEvent | Event emission | TokenRecovered event with correct params |
+| testFuzz_RecoverERC20_AnyAmount | Fuzz recovery amounts | Works for any valid token amount |
+| test_RecoverERC20_RevertIf_NotManager | Authorization check | Reverts with AccessControlUnauthorizedAccount |
+| test_RecoverERC20_RevertIf_VaultAsset | Asset protection | Reverts with CannotRecoverVaultAsset when trying to recover main asset |
+| test_RecoverERC20_RevertIf_ZeroToken | Zero token validation | Reverts with ZeroAddress for token |
+| test_RecoverERC20_RevertIf_ZeroReceiver | Zero receiver validation | Reverts with ZeroAddress for receiver |
+| test_RecoverERC20_RevertIf_NoBalance | Empty balance | Transfers 0 tokens if balance is 0 (no revert) |
+| test_RecoverERC20_WorksAfterDeposits | Recovery with active vault | Recovery works even when vault has user deposits |
+
+---
+
+### Vault.Reentrancy.t.sol
+
+| Test Name | What It Tests | Key Checks |
+|-----------|---------------|------------|
+| test_Reentrancy_HarvestFeesProtected | Reentrancy protection | harvestFees() is protected with ReentrancyGuard, reverts on reentry |
+| test_Reentrancy_DepositProtected | Deposit reentrancy protection | deposit() is protected, cannot reenter during _depositToProtocol |
+
+---
+
+### Vault.EdgeCases.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -255,7 +282,7 @@
 
 ---
 
-### Vault.ERC4626Compliance.t.sol (23 tests)
+### Vault.ERC4626Compliance.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -286,7 +313,7 @@
 
 ---
 
-### Vault.PreviewAccuracy.t.sol (4 tests)
+### Vault.PreviewAccuracy.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -299,7 +326,7 @@
 
 ## EmergencyVault Tests
 
-### EmergencyVault.t.sol (48 tests)
+### EmergencyVault.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -323,21 +350,17 @@
 | testFuzz_activateRecovery_RevertIf_EmergencyModeNotActive | State validation | Reverts if emergency mode not active |
 | testFuzz_activateRecovery_RevertIf_ZeroVaultBalance | Balance validation | Reverts with ZeroAmount if no funds recovered |
 | testFuzz_activateRecovery_RevertIf_NotEmergencyRole | Authorization check | Reverts without EMERGENCY_ROLE |
-| test_activateRecovery_RevertIf_ZeroSupply | Supply validation | Reverts with ZeroAmount if totalSupply = 0 |
 | testFuzz_EmergencyRedeem_ProRataDistribution | Pro-rata redemption | Users receive proportional share of recoveryAssets |
 | testFuzz_EmergencyRedeem_MultipleUsers_FairDistribution | Multi-user fairness | All users receive fair pro-rata distribution |
 | testFuzz_EmergencyRedeem_ClaimOrderDoesNotMatter | Order independence | Redemption order doesn't affect outcomes |
 | testFuzz_EmergencyRedeem_PartialRedeem | Partial redemption | Users can redeem portion of shares |
 | testFuzz_EmergencyRedeem_BurnsSharesCorrectly | Share burning | Shares burned, totalSupply decreased |
 | testFuzz_EmergencyRedeem_WithApproval | Delegated redemption | Works with approval mechanism |
-| testFuzz_EmergencyRedeem_NormalMode | State validation | Works in normal mode |
 | testFuzz_EmergencyRedeem_RevertIf_ZeroShares | Zero shares validation | Reverts with ZeroAmount |
 | testFuzz_EmergencyRedeem_RevertIf_ZeroReceiver | Zero receiver validation | Reverts with ZeroAddress |
 | testFuzz_EmergencyRedeem_RevertIf_InsufficientShares | Balance check | Reverts with InsufficientShares |
 | testFuzz_EmergencyRedeem_RevertIf_NoApproval | Approval requirement | Reverts without approval for delegation |
 | testFuzz_EmergencyRedeem_RoundingDoesNotBenefitUser | Rounding direction | Floor rounding favors vault |
-| test_EmergencyRedeem_MinimalShares | Minimal shares redemption | Handles very small share amounts |
-| test_EmergencyRedeem_RevertIf_AssetsRoundToZero | Zero assets validation | Reverts when calculation rounds to 0 |
 | testFuzz_Withdraw_RevertIf_EmergencyMode | Operation blocking | withdraw() reverts in emergency mode |
 | testFuzz_Redeem_RevertIf_EmergencyMode | Operation blocking | redeem() reverts in emergency mode |
 | testFuzz_Deposit_RevertIf_EmergencyMode | Operation blocking | deposit() reverts in emergency mode |
@@ -349,7 +372,7 @@
 
 ## ERC4626Adapter Tests
 
-### ERC4626Adapter.Initialization.t.sol (9 tests)
+### ERC4626Adapter.Initialization.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -365,7 +388,7 @@
 
 ---
 
-### ERC4626Adapter.Deposit.t.sol (10 tests)
+### ERC4626Adapter.Deposit.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -382,7 +405,7 @@
 
 ---
 
-### ERC4626Adapter.Withdraw.t.sol (10 tests)
+### ERC4626Adapter.Withdraw.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -399,7 +422,7 @@
 
 ---
 
-### ERC4626Adapter.Fees.t.sol (23 tests)
+### ERC4626Adapter.Fees.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -426,10 +449,13 @@
 | test_GetPendingFees_NoProfit | Pending fees no profit | Returns 0 |
 | test_GetPendingFees_WithLoss | Pending fees with loss | Returns 0 |
 | test_GetPendingFees_AfterHarvest | Pending fees after harvest | Returns 0 after harvest |
+| testFuzz_HarvestFees_WithProfit | Fuzz profit amounts | Treasury receives correct fee shares for any profit |
+| testFuzz_HarvestFees_DifferentRewardRates | Fuzz fee rates | Correct fees for any rate 0-20% |
+| testFuzz_HarvestFees_MultipleHarvests | Fuzz sequential harvests | Treasury accumulates correctly |
 
 ---
 
-### ERC4626Adapter.MaxDeposit.t.sol (16 tests)
+### ERC4626Adapter.MaxDeposit.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -449,10 +475,50 @@
 | test_Mint_WithFeeDilution_StaysWithinCap | Mint with fees | Total assets ≤ cap |
 | test_Mint_WithLargeFeeDilution_MaxDepositBecomesZero | Mint when over cap | maxDeposit = 0, mint reverts |
 | test_Mint_ConvertToSharesVsPreviewMint_WithPendingFees | Snapshot vs simulation | previewMint accounts for harvest, convertToShares doesn't |
+| testFuzz_MaxDeposit_RespectsTargetVaultLimits | Fuzz target vault caps | maxDeposit respects target vault capacity for any cap |
+| testFuzz_MaxMint_RespectsTargetVaultLimits | Fuzz maxMint with caps | maxMint = convertToShares(target.maxDeposit) |
+| testFuzz_MaxDeposit_DecreasesWithDeposits | Fuzz deposit impact | maxDeposit decreases after deposits |
+| testFuzz_Deposit_NearCapacity | Fuzz deposits near cap | Can deposit up to available capacity |
 
 ---
 
-### ERC4626Adapter.Permit.t.sol (5 tests)
+### ERC4626Adapter.MaxRedeem.t.sol
+
+| Test Name | What It Tests | Key Checks |
+|-----------|---------------|------------|
+| test_MaxRedeem_ReturnsUserBalanceWithFullLiquidity | maxRedeem in normal state | maxRedeem = user balance when target vault has full liquidity |
+| test_MaxRedeem_RespectsTargetVaultLiquidityLimits | Liquidity constraints | maxRedeem capped by target vault available assets |
+| test_MaxRedeem_ReturnsZeroWhenUserHasNoShares | Zero shares edge case | maxRedeem = 0 for users with no position |
+| test_MaxRedeem_ReturnsZeroWhenPaused | Paused state | maxRedeem = 0 when vault is paused |
+| test_MaxRedeem_MultipleUsers | Multi-user scenario | Each user gets correct maxRedeem based on their shares |
+| test_MaxRedeem_AfterPartialWithdraw | Post-withdrawal state | maxRedeem updates correctly after partial redemption |
+| test_MaxRedeem_WithPendingFees | Pending fees impact | maxRedeem accounts for fee dilution |
+| test_MaxRedeem_DecreasesProportionally | Proportional reduction | maxRedeem decreases proportionally with liquidity constraints |
+| testFuzz_MaxRedeem_MatchesUserBalance | Fuzz user balances | maxRedeem = balanceOf(user) with full liquidity |
+| testFuzz_MaxRedeem_RespectsLiquidityCap | Fuzz liquidity limits | maxRedeem respects target vault caps |
+| testFuzz_MaxRedeem_IsActuallyRedeemable | Fuzz redemption execution | Can always redeem maxRedeem amount |
+| test_MaxRedeem_EmergencyMode_ReturnsUserBalance | Emergency mode behavior | maxRedeem = user balance in emergency mode |
+| test_MaxRedeem_RecoveryActive_ReturnsUserBalance | Recovery mode behavior | maxRedeem = user balance when recovery active |
+| test_MaxRedeem_EmergencyMode_MultipleUsers | Multi-user emergency | All users can see maxRedeem in emergency |
+| test_MaxRedeem_RecoveryActive_AfterPartialRedemption | Recovery partial redemption | maxRedeem updates after partial emergency redemption |
+| testFuzz_MaxRedeem_EmergencyMode | Fuzz emergency maxRedeem | maxRedeem always equals user balance in emergency |
+| testFuzz_MaxRedeem_RecoveryActive | Fuzz recovery maxRedeem | maxRedeem always equals user balance in recovery |
+| test_MaxRedeem_NormalMode_WithZeroLiquidity | Zero liquidity edge case | maxRedeem = 0 when target vault has no liquidity |
+| test_MaxRedeem_TransitionFromNormalToEmergency | Mode transition | maxRedeem changes correctly on emergency activation |
+| testFuzz_MaxRedeem_ConsistentWithMaxWithdraw | maxRedeem vs maxWithdraw | maxRedeem ≈ convertToShares(maxWithdraw) |
+| test_MaxRedeem_WithLargeShareBalance | Large balance handling | Handles large share amounts correctly |
+| test_MaxRedeem_WithDustShares | Dust amount handling | Handles very small share amounts |
+| testFuzz_MaxRedeem_AlwaysLteUserBalance | Upper bound invariant | maxRedeem ≤ balanceOf(user) in all modes |
+| test_MaxRedeem_AfterProfitAccrual | Post-profit state | maxRedeem accounts for profit and fees |
+| testFuzz_MaxRedeem_RedeemableImpliesNoRevert | Redeemability check | redeem(maxRedeem) never reverts |
+| test_MaxRedeem_ZeroWhenProtocolInsolvent | Protocol insolvency | maxRedeem = 0 when target vault is insolvent |
+| testFuzz_MaxRedeem_ProportionalToShares | Proportionality check | maxRedeem proportional to user's share of supply |
+| test_MaxRedeem_ConsistentAcrossMultipleCalls | View function stability | Multiple maxRedeem calls return same value |
+| testFuzz_MaxRedeem_BoundedByTargetVaultMaxRedeem | Target vault bounds | maxRedeem ≤ target vault's maxRedeem |
+
+---
+
+### ERC4626Adapter.Permit.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -464,7 +530,7 @@
 
 ---
 
-### ERC4626Adapter.Approval.t.sol (13 tests)
+### ERC4626Adapter.Approval.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -479,13 +545,12 @@
 | test_EmergencyWithdraw_MultipleCallsWorkWithRevokedApproval | Multiple emergency withdrawals | Subsequent emergencyWithdraw calls work despite revoked approval (redeem doesn't need approval) |
 | test_EmergencyWithdraw_DepositFailsAfterRevocation | Deposit blocked after emergency | Approval = 0 after emergency withdrawal |
 | test_RefreshProtocolApproval_RestoresAfterEmergencyRevocation | Approval restoration | refreshProtocolApproval() restores approval after emergency revocation |
-| test_EmergencyWithdraw_ApprovalRevocationIdempotent | Idempotent revocation | Multiple emergencyWithdraw calls safely handle already-revoked approval |
 
 ---
 
 ## RewardDistributor Tests
 
-### RewardDistributor.t.sol (14 tests)
+### RewardDistributor.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -504,12 +569,23 @@
 | test_Redeem_RevertIf_NoShares | Empty shares check | Reverts with NoShares |
 | test_Redeem_RevertIf_NotManager | Manager authorization | Reverts with AccessControlUnauthorizedAccount |
 | test_Redeem_SendsAssetsAndEmitsEvent | Redemption | All shares redeemed, assets transferred, event emitted |
+| testFuzz_Constructor_ThreeWaySplit | Fuzz three-way splits | Accepts any split summing to 10000 |
+| testFuzz_Constructor_FiveWaySplit | Fuzz five-way splits | Handles complex multi-recipient splits |
+| test_Distribute_SingleRecipient | Single recipient | 100% to one recipient works |
+| test_Distribute_HandlesDust | Dust handling | Rounding dust stays in contract |
+| testFuzz_Distribute_MultipleRecipients | Fuzz multi-recipient | Correct distribution for 2-5 recipients |
+| test_GetRecipient_ReturnsCorrectData | Getter function | getRecipient(index) returns correct address and bps |
+| test_GetRecipientsCount_ReturnsCorrectCount | Count function | getRecipientsCount() returns array length |
+| testFuzz_Distribute_WithDifferentTokenDecimals | Fuzz token decimals | Works with 6, 8, 18 decimal tokens |
+| test_Redeem_EmitsCorrectEvent | Event validation | Redeemed event with correct vault and amount |
+| test_Distribute_EmitsMultipleEvents | Multiple events | Distributed event for each recipient |
+| testFuzz_Redeem_ConvertsAllShares | Fuzz redemption amounts | Redeems all distributor shares regardless of amount |
 
 ---
 
 ## Invariant Tests
 
-### Vault.invariant.t.sol (4 tests)
+### Vault.invariant.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -520,7 +596,7 @@
 
 ---
 
-### RewardDistribution.invariant.t.sol (5 tests)
+### RewardDistribution.invariant.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -534,7 +610,7 @@
 
 ## Integration Tests
 
-### Solvency.t.sol (2 tests)
+### Solvency.t.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -543,7 +619,15 @@
 
 ---
 
-### morpho-vault.integration.sol (1 test)
+### Donation.t.sol
+
+| Test Name | What It Tests | Key Checks |
+|-----------|---------------|------------|
+| test_Donation_SharesDonatedToVault | Donation handling | External party deposits into target vault and transfers shares to our vault, donated shares counted as profit, fee harvest triggered on donation, treasury receives fee shares from total profit (target vault gains + donation), users can withdraw proportionally |
+
+---
+
+### morpho-vault.integration.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
@@ -551,7 +635,7 @@
 
 ---
 
-### reward-distribution.integration.sol (1 test)
+### reward-distribution.integration.sol
 
 | Test Name | What It Tests | Key Checks |
 |-----------|---------------|------------|
