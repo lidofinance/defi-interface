@@ -2,11 +2,13 @@
 pragma solidity 0.8.30;
 
 import {TestConfig} from "test/utils/TestConfig.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {Vault} from "src/Vault.sol";
 import {ERC4626Adapter} from "src/adapters/ERC4626Adapter.sol";
 import {MockVault} from "test/mocks/MockVault.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
+import {MockERC4626Vault} from "test/mocks/MockERC4626Vault.sol";
 
 /**
  * @title VaultConstructorTest
@@ -264,7 +266,7 @@ contract VaultConstructorTest is TestConfig {
     /* ========== ERC4626 ADAPTER CONSTRUCTOR TESTS ========== */
 
     /// @notice Test that ERC4626Adapter constructor reverts when target vault address is zero
-    /// @dev Coverage: src/adapters/ERC4626Adapter.sol:59 - if (targetVault_ == address(0)) revert TargetVaultZeroAddress();
+    /// @dev Coverage: src/adapters/ERC4626Adapter.sol:102 - if (targetVault_ == address(0)) revert TargetVaultZeroAddress();
     function test_AdapterConstructor_RevertWhen_TargetVaultIsZeroAddress() public {
         asset = new MockERC20("USD Coin", "USDC", _assetDecimals());
 
@@ -273,6 +275,40 @@ contract VaultConstructorTest is TestConfig {
         new ERC4626Adapter(
             address(asset),
             address(0), // Zero address for target vault
+            treasury,
+            VALID_REWARD_FEE,
+            VALID_OFFSET,
+            VAULT_NAME,
+            VAULT_SYMBOL,
+            address(this)
+        );
+    }
+
+    /// @notice Test that ERC4626Adapter constructor reverts when target vault asset doesn't match provided asset
+    function test_AdapterConstructor_RevertWhen_TargetVaultAssetMismatch() public {
+        MockERC20 assetA = new MockERC20("Asset A", "ASST_A", _assetDecimals());
+        MockERC20 assetB = new MockERC20("Asset B", "ASST_B", _assetDecimals());
+
+        // Create target vault with assetB
+        MockERC4626Vault targetVault = new MockERC4626Vault(
+            IERC20(address(assetB)),
+            "Target Vault",
+            "tVAULT",
+            VALID_OFFSET
+        );
+
+        // Try to create adapter with assetA (mismatch!)
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ERC4626Adapter.TargetVaultAssetMismatch.selector,
+                address(assetA),
+                address(assetB)
+            )
+        );
+
+        new ERC4626Adapter(
+            address(assetA), // Different asset than target vault
+            address(targetVault),
             treasury,
             VALID_REWARD_FEE,
             VALID_OFFSET,

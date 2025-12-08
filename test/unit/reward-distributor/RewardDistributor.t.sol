@@ -48,6 +48,15 @@ contract RewardDistributorTest is TestConfig {
 
     /* ========== CONSTRUCTOR TESTS ========== */
 
+    /// @notice Ensures constructor reverts when admin address is zero.
+    /// @dev Verifies the revert protects against zero admin address.
+    function test_Constructor_RevertIf_AdminZeroAddress() public {
+        (address[] memory recs, uint256[] memory bps) = _defaultRecipients();
+
+        vm.expectRevert(abi.encodeWithSelector(RewardDistributor.InvalidAdminAddress.selector, address(0)));
+        new RewardDistributor(address(0), recs, bps);
+    }
+
     /// @notice Ensures constructor reverts when length mismatch.
     /// @dev Verifies the revert protects against length mismatch.
     function test_Constructor_RevertIf_LengthMismatch() public {
@@ -71,15 +80,15 @@ contract RewardDistributorTest is TestConfig {
         new RewardDistributor(admin, recs, bps);
     }
 
-    /// @notice Ensures constructor reverts when zero address.
-    /// @dev Verifies the revert protects against zero address.
-    function test_Constructor_RevertIf_ZeroAddress() public {
+    /// @notice Ensures constructor reverts when recipient address is zero.
+    /// @dev Verifies the revert protects against zero recipient address.
+    function test_Constructor_RevertIf_RecipientZeroAddress() public {
         address[] memory recs = new address[](1);
         recs[0] = address(0);
         uint256[] memory bps = new uint256[](1);
         bps[0] = MAX_BPS;
 
-        vm.expectRevert(RewardDistributor.ZeroAddress.selector);
+        vm.expectRevert(abi.encodeWithSelector(RewardDistributor.InvalidRecipientAddress.selector, address(0)));
         new RewardDistributor(admin, recs, bps);
     }
 
@@ -91,7 +100,7 @@ contract RewardDistributorTest is TestConfig {
         uint256[] memory bps = new uint256[](1);
         bps[0] = 0;
 
-        vm.expectRevert(RewardDistributor.ZeroBasisPoints.selector);
+        vm.expectRevert(abi.encodeWithSelector(RewardDistributor.InvalidBasisPoints.selector, recipientA, 0));
         new RewardDistributor(admin, recs, bps);
     }
 
@@ -211,6 +220,15 @@ contract RewardDistributorTest is TestConfig {
         vm.expectRevert(abi.encodeWithSelector(RewardDistributor.InvalidRecipientIndex.selector, 2));
         vm.prank(admin);
         distributor.replaceRecipient(2, makeAddr("newRecipient"));
+    }
+
+    /// @notice Ensures replace recipient reverts when new address is zero.
+    function test_ReplaceRecipient_RevertIf_ZeroAddress() public {
+        RewardDistributor distributor = _deployDefaultDistributor();
+
+        vm.expectRevert(abi.encodeWithSelector(RewardDistributor.InvalidRecipientAddress.selector, address(0)));
+        vm.prank(admin);
+        distributor.replaceRecipient(0, address(0));
     }
 
     /// @notice Ensures replace recipient reverts when using existing recipient address.

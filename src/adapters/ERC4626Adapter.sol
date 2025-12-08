@@ -73,6 +73,9 @@ contract ERC4626Adapter is EmergencyVault {
     /// @notice Thrown when target vault deposit returns zero shares
     error TargetVaultDepositFailed();
 
+    /// @notice Thrown when target vault asset does not match the underlying asset
+    error TargetVaultAssetMismatch(address asset, address targetVaultAsset);
+
     /* ========== CONSTRUCTOR ========== */
 
     /**
@@ -99,9 +102,10 @@ contract ERC4626Adapter is EmergencyVault {
         if (targetVault_ == address(0)) revert TargetVaultZeroAddress();
 
         TARGET_VAULT = IERC4626(targetVault_);
-        ASSET = IERC20(asset_);
+        if (asset_ != TARGET_VAULT.asset()) revert TargetVaultAssetMismatch(asset_, TARGET_VAULT.asset());
 
-        ASSET.forceApprove(targetVault_, type(uint256).max);
+        ASSET = IERC20(asset_);
+        ASSET.forceApprove(address(TARGET_VAULT), type(uint256).max);
     }
 
     /* ========== VIEW FUNCTIONS ========== */

@@ -86,17 +86,20 @@ contract RewardDistributor is AccessControl {
 
     /* ========== ERRORS ========== */
 
+    /// @notice Thrown when admin address is invalid
+    error InvalidAdminAddress(address admin);
+
     /// @notice Thrown when recipients and basisPoints arrays have different lengths or are empty
     error InvalidRecipientsLength();
 
     /// @notice Thrown when the sum of all basis points does not equal MAX_BASIS_POINTS (10,000)
     error InvalidBasisPointsSum();
 
-    /// @notice Thrown when a zero address is provided for recipient or manager
-    error ZeroAddress();
+    /// @notice Thrown when a recipient's address is invalid
+    error InvalidRecipientAddress(address recipient);
 
-    /// @notice Thrown when a recipient's basis points allocation is zero
-    error ZeroBasisPoints();
+    /// @notice Thrown when a recipient's basis points allocation is invalid
+    error InvalidBasisPoints(address recipient, uint256 basisPoints);
 
     /// @notice Thrown when attempting to distribute with zero token balance
     error NoBalance();
@@ -127,6 +130,8 @@ contract RewardDistributor is AccessControl {
      * @param basisPoints_ Array of allocation percentages in basis points (must sum to 10,000)
      */
     constructor(address admin_, address[] memory recipients_, uint256[] memory basisPoints_) {
+        if (admin_ == address(0)) revert InvalidAdminAddress(admin_);
+
         if (recipients_.length != basisPoints_.length) {
             revert InvalidRecipientsLength();
         }
@@ -142,10 +147,10 @@ contract RewardDistributor is AccessControl {
             uint256 recipientBps = basisPoints_[i];
 
             if (recipientAccount == address(0)) {
-                revert ZeroAddress();
+                revert InvalidRecipientAddress(recipientAccount);
             }
             if (recipientBps == 0) {
-                revert ZeroBasisPoints();
+                revert InvalidBasisPoints(recipientAccount, recipientBps);
             }
             if (recipientExists[recipientAccount]) {
                 revert DuplicateRecipient(recipientAccount);
@@ -195,7 +200,7 @@ contract RewardDistributor is AccessControl {
      */
     function replaceRecipient(uint256 index, address newAccount) external onlyRole(RECIPIENTS_MANAGER_ROLE) {
         if (index >= recipients.length) revert InvalidRecipientIndex(index);
-        if (newAccount == address(0)) revert ZeroAddress();
+        if (newAccount == address(0)) revert InvalidRecipientAddress(newAccount);
 
         Recipient storage recipient = recipients[index];
         address oldAccount = recipient.account;
