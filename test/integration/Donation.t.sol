@@ -206,4 +206,149 @@ contract DonationTest is ERC4626AdapterTestBase {
         console.log("Expected total:", expectedTotal);
         console.log("Vault remaining:", vault.totalAssets());
     }
+
+    /**
+     * @notice Tests that directly donated USDC (not target vault shares) requires manual recovery via depositUnallocatedAssets
+     * @dev Scenario:
+     *      1. Users deposit into vault
+     *      2. Target vault generates profit
+     *      3. Someone accidentally sends USDC directly to vault contract address
+     *      4. Verify donated USDC is NOT included in totalAssets (ignored in normal mode)
+     *      5. Manager calls depositUnallocatedAssets() to recover and deploy the donation
+     *      6. Verify totalAssets now includes the donation
+     *      7. Harvest fees and verify correct distribution
+     */
+    function test_Donation_DirectAssetDonation_RequiresManualRecovery() public {
+        // ========== STEP 1: Users deposit ==========
+        uint256 user1Deposit = 50_000e6;
+        uint256 user2Deposit = 100_000e6;
+        uint256 user3Deposit = 150_000e6;
+
+        vm.prank(user1);
+        vault.deposit(user1Deposit, user1);
+
+        vm.prank(user2);
+        vault.deposit(user2Deposit, user2);
+
+        vm.prank(user3);
+        vault.deposit(user3Deposit, user3);
+
+        uint256 totalDeposited = user1Deposit + user2Deposit + user3Deposit;
+
+        // Verify initial state
+        assertEq(vault.totalAssets(), totalDeposited, "Total assets should equal deposits");
+
+        // ========== STEP 2: Target vault generates profit ==========
+        uint256 targetVaultProfit = 30_000e6;
+        usdc.mint(address(targetVault), targetVaultProfit);
+
+        uint256 expectedAssetsAfterProfit = totalDeposited + targetVaultProfit;
+        assertApproxEqAbs(
+            vault.totalAssets(), expectedAssetsAfterProfit, 1, "Total assets should include target vault profit"
+        );
+
+        // ========== STEP 3: Someone sends USDC directly to vault ==========
+        uint256 donatedUSDC = 50_000e6;
+        usdc.mint(address(vault), donatedUSDC);
+
+        // Verify vault has idle USDC balance
+        assertEq(usdc.balanceOf(address(vault)), donatedUSDC, "Vault should have idle USDC");
+
+        // ========== STEP 4: Verify donated USDC is NOT in totalAssets (normal mode behavior) ==========
+        // In normal mode, idle balance is ignored
+        assertApproxEqAbs(
+            vault.totalAssets(),
+            expectedAssetsAfterProfit,
+            1,
+            "Total assets should NOT include idle USDC in normal mode"
+        );
+
+        // ========== STEP 5: Manager recovers donated USDC via depositUnallocatedAssets ==========
+        uint256 totalAssetsBefore = vault.totalAssets();
+
+        vault.depositUnallocatedAssets();
+
+        // Verify idle USDC was deposited to target vault
+        assertEq(usdc.balanceOf(address(vault)), 0, "Vault should have no idle USDC after recovery");
+
+        // Verify totalAssets increased by the donated amount
+        uint256 totalAssetsAfter = vault.totalAssets();
+        assertApproxEqAbs(
+            totalAssetsAfter, totalAssetsBefore + donatedUSDC, 1, "Total assets should now include donated USDC"
+        );
+
+        // ========== STEP 6: Harvest fees ==========
+        uint256 treasurySharesBefore = vault.balanceOf(treasury);
+
+        vault.harvestFees();
+
+        uint256 treasurySharesAfter = vault.balanceOf(treasury);
+        uint256 feeSharesMinted = treasurySharesAfter - treasurySharesBefore;
+
+        // ========== STEP 7: Verify fee calculation includes all profit sources ==========
+        // Total profit = target vault profit + donated USDC (now deployed)
+        uint256 totalProfit = targetVaultProfit + donatedUSDC;
+        uint256 expectedFeeValue = (totalProfit * vault.rewardFee()) / vault.MAX_BASIS_POINTS();
+        uint256 actualFeeValue = vault.convertToAssets(feeSharesMinted);
+
+        assertApproxEqAbs(
+            actualFeeValue, expectedFeeValue, 2, "Fee should be calculated on total profit including donation"
+        );
+
+        // ========== STEP 8: Verify users can withdraw correctly ==========
+        uint256 feeAmount = (totalProfit * vault.rewardFee()) / vault.MAX_BASIS_POINTS();
+        uint256 netProfitForUsers = totalProfit - feeAmount;
+
+        // User1 withdrawal
+        uint256 user1ExpectedProfit = (user1Deposit * netProfitForUsers) / totalDeposited;
+        uint256 user1Expected = user1Deposit + user1ExpectedProfit;
+
+        uint256 user1Shares = vault.balanceOf(user1);
+        vm.prank(user1);
+        uint256 user1Assets = vault.redeem(user1Shares, user1, user1);
+
+        assertApproxEqAbs(user1Assets, user1Expected, 2, "User1 should get deposit + proportional profit");
+
+        // User2 withdrawal
+        uint256 user2ExpectedProfit = (user2Deposit * netProfitForUsers) / totalDeposited;
+        uint256 user2Expected = user2Deposit + user2ExpectedProfit;
+
+        uint256 user2Shares = vault.balanceOf(user2);
+        vm.prank(user2);
+        uint256 user2Assets = vault.redeem(user2Shares, user2, user2);
+
+        assertApproxEqAbs(user2Assets, user2Expected, 2, "User2 should get deposit + proportional profit");
+
+        // User3 withdrawal
+        uint256 user3ExpectedProfit = (user3Deposit * netProfitForUsers) / totalDeposited;
+        uint256 user3Expected = user3Deposit + user3ExpectedProfit;
+
+        uint256 user3Shares = vault.balanceOf(user3);
+        vm.prank(user3);
+        uint256 user3Assets = vault.redeem(user3Shares, user3, user3);
+
+        assertApproxEqAbs(user3Assets, user3Expected, 2, "User3 should get deposit + proportional profit");
+
+        // Treasury withdrawal
+        uint256 treasuryShares = vault.balanceOf(treasury);
+        vm.prank(treasury);
+        uint256 treasuryAssets = vault.redeem(treasuryShares, treasury, treasury);
+
+        assertApproxEqAbs(treasuryAssets, feeAmount, 2, "Treasury should receive fee amount");
+
+        // ========== STEP 9: Verify solvency ==========
+        uint256 totalWithdrawn = user1Assets + user2Assets + user3Assets + treasuryAssets;
+        uint256 expectedTotal = totalDeposited + totalProfit;
+
+        assertApproxEqAbs(totalWithdrawn, expectedTotal, 10, "Total withdrawn should equal deposits + all profit");
+
+        console.log("=== DIRECT USDC DONATION TEST ===");
+        console.log("Total deposited:", totalDeposited);
+        console.log("Target vault profit:", targetVaultProfit);
+        console.log("Direct USDC donation:", donatedUSDC);
+        console.log("Total profit:", totalProfit);
+        console.log("Fee amount (5%):", feeAmount);
+        console.log("Total withdrawn:", totalWithdrawn);
+        console.log("Expected total:", expectedTotal);
+    }
 }
