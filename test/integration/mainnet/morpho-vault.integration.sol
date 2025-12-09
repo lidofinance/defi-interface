@@ -228,7 +228,7 @@ contract MorphoVaultIntegrationTest is Test {
             uint256 declaredRecoverableAmount = token.balanceOf(address(vault));
 
             vm.prank(emergencyAdmin);
-            vault.activateRecovery(declaredRecoverableAmount);
+            vault.activateRecovery();
 
             assertTrue(vault.recoveryMode(), "Recovery mode not activated");
 

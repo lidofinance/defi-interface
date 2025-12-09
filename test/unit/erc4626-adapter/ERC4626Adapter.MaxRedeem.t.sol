@@ -230,7 +230,7 @@ contract ERC4626AdapterMaxRedeemTest is ERC4626AdapterTestBase {
         // Trigger emergency and activate recovery
         vault.emergencyWithdraw();
         uint256 recoveredAmount = usdc.balanceOf(address(vault));
-        vault.activateRecovery(recoveredAmount);
+        vault.activateRecovery();
 
         uint256 maxRedeemable = vault.maxRedeem(alice);
 
@@ -247,7 +247,7 @@ contract ERC4626AdapterMaxRedeemTest is ERC4626AdapterTestBase {
         // Trigger emergency and activate recovery
         vault.emergencyWithdraw();
         uint256 recoveredAmount = usdc.balanceOf(address(vault));
-        vault.activateRecovery(recoveredAmount);
+        vault.activateRecovery();
 
         // Check Bob's maxRedeem (Bob has no shares)
         uint256 maxRedeemable = vault.maxRedeem(bob);
@@ -267,7 +267,7 @@ contract ERC4626AdapterMaxRedeemTest is ERC4626AdapterTestBase {
         // Trigger emergency and activate recovery
         vault.emergencyWithdraw();
         uint256 recoveredAmount = usdc.balanceOf(address(vault));
-        vault.activateRecovery(recoveredAmount);
+        vault.activateRecovery();
 
         // Simulate target vault having zero liquidity (shouldn't matter in recovery)
         targetVault.setLiquidityCap(0);
@@ -294,7 +294,7 @@ contract ERC4626AdapterMaxRedeemTest is ERC4626AdapterTestBase {
         // Trigger emergency and activate recovery
         vault.emergencyWithdraw();
         uint256 recoveredAmount = usdc.balanceOf(address(vault));
-        vault.activateRecovery(recoveredAmount);
+        vault.activateRecovery();
 
         uint256 aliceMaxRedeem = vault.maxRedeem(alice);
         uint256 bobMaxRedeem = vault.maxRedeem(bob);
@@ -322,7 +322,7 @@ contract ERC4626AdapterMaxRedeemTest is ERC4626AdapterTestBase {
         // Trigger emergency and activate recovery
         vault.emergencyWithdraw();
         uint256 recoveredAmount = usdc.balanceOf(address(vault));
-        vault.activateRecovery(recoveredAmount);
+        vault.activateRecovery();
 
         uint256 maxRedeemAfter = vault.maxRedeem(alice);
 
@@ -420,7 +420,7 @@ contract ERC4626AdapterMaxRedeemTest is ERC4626AdapterTestBase {
         // Trigger emergency and activate recovery
         vault.emergencyWithdraw();
         uint256 recoveredAmount = usdc.balanceOf(address(vault));
-        vault.activateRecovery(recoveredAmount);
+        vault.activateRecovery();
 
         uint256 maxRedeemable = vault.maxRedeem(alice);
 

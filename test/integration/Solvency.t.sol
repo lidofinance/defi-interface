@@ -117,7 +117,7 @@ contract SolvencyTest is ERC4626AdapterTestBase {
         vault.emergencyWithdraw();
 
         vm.prank(address(this));
-        vault.activateRecovery(usdc.balanceOf(address(vault)));
+        vault.activateRecovery();
 
         uint256 snapshotAssets = vault.recoveryAssets();
         uint256 snapshotSupply = vault.recoverySupply();

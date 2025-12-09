@@ -138,13 +138,13 @@ abstract contract EmergencyVault is Vault {
 
     /**
      * @notice Emitted when emergency recovery is activated
-     * @param declaredRecoverableAmount Amount declared by admin (may differ from actual on-chain balance)
-     * @param recoverySupply Total shares at recovery
-     * @param protocolBalance Amount stuck in protocol due to liquidity constraints
+     * @param recoveryBalance Recoverable amount
+     * @param recoverySupply Total shares
+     * @param remainingProtocolBalance Amount stuck in protocol due to liquidity constraints
      * @param implicitLoss Value lost compared to emergencyTotalAssets snapshot
      */
     event RecoveryActivated(
-        uint256 declaredRecoverableAmount, uint256 recoverySupply, uint256 protocolBalance, uint256 implicitLoss
+        uint256 recoveryBalance, uint256 recoverySupply, uint256 remainingProtocolBalance, uint256 implicitLoss
     );
 
     /* ========== ERRORS ========== */
@@ -160,12 +160,6 @@ abstract contract EmergencyVault is Vault {
 
     /// @notice Thrown when attempting to activate emergency mode more than once
     error EmergencyModeAlreadyActive();
-
-    /// @notice Thrown when declared recoverable amount exceeds the tokens the vault actually holds
-    /// @dev Protects against over-reporting in activateRecovery by ensuring declared <= IERC20(asset()).balanceOf
-    /// @param declared Amount supplied to activateRecovery
-    /// @param actual Real balance available for recovery
-    error RecoverableAmountMismatch(uint256 declared, uint256 actual);
 
     /// @notice Thrown when trying to activate recovery without emergency mode being active
     error EmergencyModeNotActive();
@@ -213,30 +207,33 @@ abstract contract EmergencyVault is Vault {
 
     /**
      * @notice Activate emergency recovery mode for user claims
-     * @param declaredRecoverableAmount Amount of assets admin declares as recoverable
-     * @dev Snapshots vault state and enables pro-rata redemptions through emergencyRedeem().
+     * @dev Snapshots vault state and enables pro-rata redemptions.
+     *      Permanently locks the vault - users can only redeem() their shares for proportional assets.
      *
-     *      The declaredRecoverableAmount parameter prevents accidental activation - admin must
-     *      explicitly confirm the recoverable amount.
-     *
-     *      Supports partial recovery scenarios.
-     *      If protocolBalance > 0, funds remain stuck but does NOT revert - admin explicitly
-     *      accepts this by declaring the recoverable amount.
+     *      Supports partial recovery scenarios:
+     *      - If protocolBalance > 0, those funds remain stuck in the target vault
+     *      - implicitLoss shows the total amount unavailable to users (stuck funds + phantom value)
+     *      - Recovery proceeds with whatever balance is available on the vault contract
      *
      *      Execution flow:
-     *      1. Validates declaredRecoverableAmount is not bigger than vault balance (safety check)
-     *      2. Harvests pending fees to ensure fair distribution
-     *      3. Snapshots recoveryAssets and recoverySupply for immutable pro-rata calculation
+     *      1. Harvests pending fees to ensure fair distribution
+     *      2. Snapshots actualBalance and totalSupply for immutable pro-rata calculation
+     *      3. Calculates implicitLoss = emergencyTotalAssets - actualBalance
+     *      4. Sets recoveryMode = true (permanent, cannot be reversed)
      *
      *      Recovery mode is permanent and CANNOT be deactivated (vault becomes "pumpkin").
+     *      After activation, deposits/mints are permanently blocked.
      *
      *      Requirements:
-     *      - Emergency mode must be active (funds withdrawn from protocol)
-     *      - declaredRecoverableAmount must be less or equal vault's asset balance
+     *      - Emergency mode must be active (funds withdrawn from protocol via emergencyWithdraw)
+     *      - Vault must have non-zero asset balance
      *      - Total supply must be > 0 (cannot recover to empty vault)
      *      - Only callable by EMERGENCY_ROLE
+     *
+     *      Emits RecoveryActivated(actualBalance, totalSupply, protocolBalance, implicitLoss)
+     *      where implicitLoss = max(0, emergencyTotalAssets - actualBalance)
      */
-    function activateRecovery(uint256 declaredRecoverableAmount)
+    function activateRecovery()
         external
         virtual
         onlyRole(EMERGENCY_ROLE)
@@ -244,28 +241,23 @@ abstract contract EmergencyVault is Vault {
     {
         if (recoveryMode) revert RecoveryAlreadyActive();
         if (!emergencyMode) revert EmergencyModeNotActive();
-        if (declaredRecoverableAmount == 0) revert ZeroAmount();
 
         _harvestFees();
 
         uint256 actualBalance = IERC20(asset()).balanceOf(address(this));
-        if (actualBalance < declaredRecoverableAmount) {
-            revert RecoverableAmountMismatch(declaredRecoverableAmount, actualBalance);
-        }
         if (actualBalance == 0) revert ZeroBalance();
 
         uint256 supply = totalSupply();
         if (supply == 0) revert ZeroSupply();
 
         uint256 protocolBalance = _getProtocolBalance();
-        uint256 totalRecoverable = declaredRecoverableAmount + protocolBalance;
-        uint256 implicitLoss = emergencyTotalAssets > totalRecoverable ? emergencyTotalAssets - totalRecoverable : 0;
+        uint256 implicitLoss = emergencyTotalAssets > actualBalance ? emergencyTotalAssets - actualBalance : 0;
 
         recoveryAssets = actualBalance;
         recoverySupply = supply;
         recoveryMode = true;
 
-        emit RecoveryActivated(declaredRecoverableAmount, supply, protocolBalance, implicitLoss);
+        emit RecoveryActivated(actualBalance, supply, protocolBalance, implicitLoss);
     }
 
     /* ========== OVERRIDES TO BLOCK NORMAL OPERATIONS DURING EMERGENCY ========== */

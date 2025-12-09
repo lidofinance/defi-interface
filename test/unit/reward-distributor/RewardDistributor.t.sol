@@ -490,7 +490,7 @@ contract RewardDistributorTest is TestConfig {
         uint256 vaultBalance = recoveryAsset.balanceOf(address(emergencyVault));
         assertGt(vaultBalance, 0, "Vault should hold assets for recovery");
 
-        emergencyVault.activateRecovery(vaultBalance);
+        emergencyVault.activateRecovery();
         assertTrue(emergencyVault.recoveryMode(), "Recovery mode should be active");
 
         vm.prank(admin);

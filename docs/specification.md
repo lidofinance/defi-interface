@@ -410,7 +410,11 @@ Extends `Vault` to handle protocol failure scenarios using a Snapshot-based reco
 
 * `EmergencyModeActivated(uint256 emergencyAssetsSnapshot, uint256 activationTimestamp)`: Emitted when emergency mode is activated.
 * `EmergencyWithdrawal(uint256 recovered, uint256 remaining)`: Emitted when assets are withdrawn from protocol during emergency.
-* `RecoveryActivated(uint256 recoveryAssets, uint256 recoverySupply, uint256 protocolBalance, uint256 implicitLoss)`: Emitted when emergency recovery is activated (the first argument reflects the administrator-declared amount, not the actual on-chain balance snapshotted into `recoveryAssets`).
+* `RecoveryActivated(uint256 actualBalance, uint256 recoverySupply, uint256 protocolBalance, uint256 implicitLoss)`: Emitted when emergency recovery is activated. Parameters:
+  - `actualBalance`: The vault's asset balance that will be distributed to users (snapshotted as `recoveryAssets`)
+  - `recoverySupply`: Total supply of shares at recovery activation
+  - `protocolBalance`: Amount of assets still stuck in the target vault (if any)
+  - `implicitLoss`: Total unavailable amount = `max(0, emergencyTotalAssets - actualBalance)`, includes both stuck funds and phantom value
 
 #### `activateEmergencyMode`
 
@@ -461,23 +465,25 @@ function emergencyWithdraw() external virtual onlyRole(EMERGENCY_ROLE) nonReentr
 Permanently transitions the vault to Recovery Mode, enabling user claims via pro-rata distribution.
 
 ```solidity
-function activateRecovery(uint256 declaredRecoverableAmount) external virtual onlyRole(EMERGENCY_ROLE) nonReentrant
+function activateRecovery() external virtual onlyRole(EMERGENCY_ROLE) nonReentrant
 ```
 
 **Constraints:**
 
   * `emergencyMode` must be active.
   * `recoveryMode` must not be active.
-  * `declaredRecoverableAmount` must be greater than zero and must not exceed the actual token balance held by the vault.
+  * Vault must have non-zero asset balance.
   * `totalSupply` must be greater than zero.
 
 **Notes:**
 
-  * Harvests pending fees one last time.
-  * Allows the admin to intentionally declare less than the full vault balance as recoverable (e.g., to hold an operational buffer); only declarations above the actual balance revert.
-  * Snapshots `recoveryAssets` using the real on-chain balance, while the `RecoveryActivated` event records the declared amount for transparency.
-  * Calculates and emits `implicitLoss` using the declared amount plus any remaining protocol balance, matching the value published in the event.
-  * Sets `recoveryMode = true`, permanently disabling deposits.
+  * Harvests pending fees one last time to ensure fair distribution.
+  * Snapshots `recoveryAssets` and `recoverySupply` using the vault's current asset balance and total supply.
+  * Calculates `implicitLoss = max(0, emergencyTotalAssets - actualBalance)`, showing the total amount unavailable to users.
+  * `implicitLoss` includes both stuck funds (`protocolBalance`) and phantom value (if target vault had accounting errors).
+  * Emits `RecoveryActivated(actualBalance, totalSupply, protocolBalance, implicitLoss)` for full transparency.
+  * Sets `recoveryMode = true`, permanently disabling deposits and mints.
+  * After activation, users can only `redeem()` their shares for pro-rata assets.
 
 #### `_emergencyRedeem`
 
