@@ -25,12 +25,14 @@ import {Vault} from "./Vault.sol";
  *         - Normal withdraw/redeem are blocked during emergency mode
  *         - Can be called multiple times if protocol has partial liquidity
  *
+ *      // Review: Outdated spec. There is no declaredAmount parameter in activateRecovery() anymore.
  *      2. Admin calls activateRecovery(declaredAmount) to enable user claims
  *         - Admin explicitly declares recoverable amount (safety check)
  *         - Harvests pending fees before snapshot
  *         - Calculates and emits implicitLoss (emergencyTotalAssets - recoverable)
  *         - Snapshots recoveryAssets/recoverySupply for pro-rata distribution
  *
+ *      // Review: There is no public emergencyRedeem() function anymore; it's internal. Also fix in the docs below.
  *      3. Users call emergencyRedeem() to claim proportional share
  *         - Formula: userAssets = userShares * recoveryAssets / recoverySupply
  *
@@ -71,6 +73,7 @@ import {Vault} from "./Vault.sol";
  *      - Situation: Underlying ERC4626 vault loses value
  *      - Example: Target vault's share price drops from 1.0 to 0.8 due to bad debt
  *      - Behavior:
+ *      // Review: How can we capture old share price?
  *        • emergencyTotalAssets captured before withdrawal reflects old share price
  *        • After withdrawal, our shares are worth 20% less
  *        • protocolBalance may show remaining shares (their value already declined)
@@ -108,6 +111,7 @@ abstract contract EmergencyVault is Vault {
     /// @notice Whether emergency mode is active (vault paused, withdrawing from protocol)
     bool public emergencyMode;
 
+    // Review: Add a note that withdrawFromProtocol is not allowed in recovery mode.
     /// @notice Whether emergency recovery is active (users can claim)
     bool public recoveryMode;
 
@@ -122,6 +126,7 @@ abstract contract EmergencyVault is Vault {
 
     /* ========== EVENTS ========== */
 
+    // Review: Timestamp is redundant, can be obtained from block data.
     /**
      * @notice Emitted when emergency mode is activated
      * @param emergencyAssetsSnapshot Total assets snapshot captured at activation
@@ -199,9 +204,11 @@ abstract contract EmergencyVault is Vault {
     function activateEmergencyMode() public onlyRole(EMERGENCY_ROLE) {
         if (emergencyMode) revert EmergencyModeAlreadyActive();
 
+        // Review: Consider taking a snapshot before enabling emergency mode?
         emergencyMode = true;
         uint256 snapshotAssets = totalAssets();
         emergencyTotalAssets = snapshotAssets;
+        // Review: Consider also emitting current shares from the TAGRET_VAULT?
         emit EmergencyModeActivated(snapshotAssets, block.timestamp);
     }
 
@@ -243,7 +250,8 @@ abstract contract EmergencyVault is Vault {
         if (!emergencyMode) revert EmergencyModeNotActive();
 
         _harvestFees();
-
+        
+        // Review: Inconsistent usage od `asset()` and `ASSET`
         uint256 actualBalance = IERC20(asset()).balanceOf(address(this));
         if (actualBalance == 0) revert ZeroBalance();
 
@@ -312,6 +320,7 @@ abstract contract EmergencyVault is Vault {
         return super.redeem(sharesToRedeem, assetReceiver, shareOwner);
     }
 
+    // Review: Missing natspec
     function harvestFees() external override nonReentrant {
         if (emergencyMode) revert DisabledDuringEmergencyMode();
         _harvestFees();
@@ -332,11 +341,13 @@ abstract contract EmergencyVault is Vault {
      * @param owner Address whose shares are burned
      * @return assets Amount of assets transferred
      */
+    // Review: Keep the same param names as redeem() for clarity?
     function _emergencyRedeem(uint256 shares, address receiver, address owner)
         internal
         nonReentrant
         returns (uint256 assets)
     {
+        // Review: Already checked in redeem()
         if (!recoveryMode) {
             revert RecoveryNotActive();
         }

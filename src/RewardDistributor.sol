@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+// Review: (General)
+// - Recipients model is not straightforward. Addresses can be rotated, but the number of recipients and their shares are immutable.
+// - Split model is strange as well. Consider recording shares on distribute and then have 2 methods to claim rewards by each recipient. Either in shares or in tokens.
+
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
@@ -38,6 +42,7 @@ contract RewardDistributor is AccessControl {
      * @param account Address that will receive distributed tokens
      * @param basisPoints Allocation percentage in basis points (e.g., 5000 = 50%)
      */
+    // Review: Can be packed to one slot if `basisPoints` is uint16.
     struct Recipient {
         address account;
         uint256 basisPoints;
@@ -129,6 +134,7 @@ contract RewardDistributor is AccessControl {
      * @param recipients_ Array of recipient addresses
      * @param basisPoints_ Array of allocation percentages in basis points (must sum to 10,000)
      */
+    // Review: Why memory and not calldata?
     constructor(address admin_, address[] memory recipients_, uint256[] memory basisPoints_) {
         if (admin_ == address(0)) revert InvalidAdminAddress(admin_);
 
@@ -198,6 +204,7 @@ contract RewardDistributor is AccessControl {
      * @param index Position within recipients array to update
      * @param newAccount Address that will start receiving this allocation
      */
+    // Review: Do we need to call distribute before replacing to ensure fair distribution? If this method is for emergency rotation, mention it the doc.
     function replaceRecipient(uint256 index, address newAccount) external onlyRole(RECIPIENTS_MANAGER_ROLE) {
         if (index >= recipients.length) revert InvalidRecipientIndex(index);
         if (newAccount == address(0)) revert InvalidRecipientAddress(newAccount);
@@ -221,6 +228,8 @@ contract RewardDistributor is AccessControl {
      *      Only callable by MANAGER_ROLE.
      * @param token Address of the ERC20 token to distribute
      */
+    // Review: Place redeem and distribute next to each other?
+    // Review: Why not to have a combined redeem and distribute method?
     function distribute(address token) external onlyRole(MANAGER_ROLE) {
         IERC20 tokenContract = IERC20(token);
         uint256 balance = tokenContract.balanceOf(address(this));
@@ -233,7 +242,7 @@ contract RewardDistributor is AccessControl {
         uint256 recipientsLength = recipients.length;
         for (uint256 i = 0; i < recipientsLength; i++) {
             Recipient memory recipient = recipients[i];
-
+            // Review: mulDiv?
             uint256 amount = (balance * recipient.basisPoints) / MAX_BASIS_POINTS;
 
             if (amount > 0) {
@@ -274,6 +283,7 @@ contract RewardDistributor is AccessControl {
      * @notice Returns all recipients and their allocations
      * @return Array of all Recipient structs containing addresses and basis points
      */
+    // Review: Make `recipinets` private if we have this method?
     function getAllRecipients() external view returns (Recipient[] memory) {
         return recipients;
     }

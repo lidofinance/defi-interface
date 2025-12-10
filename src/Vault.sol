@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+// Review: (General)
+// - Move duplicated code to helper functions.
+// - Consider using AI tools for gas optimisation suggestions.
+// - Ensure that all virtual functions are indeed overriden. Otherwise remove virtual keyword.
+
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -38,15 +43,19 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
     /// @notice Basis points denominator (100% = 10,000 basis points)
     uint256 public constant MAX_BASIS_POINTS = 10_000;
 
+    // Review: Why 20%? Add a reasoning
     /// @notice Maximum allowed reward fee in basis points (20%)
     uint256 public constant MAX_REWARD_FEE_BASIS_POINTS = 2_000;
 
+    // Review: Looks useless. Does not solve inflation attack on it's own. User can deposit 1000 and then withdraw 999. Consider removing at all.
     /// @notice Minimum amount required for first deposit to prevent inflation attacks
     uint256 public constant MIN_FIRST_DEPOSIT = 1_000;
 
+    // Review: Where is MIN_OFFSET? If OFFSET is 0 there is effectively no protection.
     /// @notice Maximum allowed decimals offset for share inflation protection
     uint8 public constant MAX_OFFSET = 23;
 
+    // Review: Maybe it is worth having 2 separate roles for pause and resume? OR Rename to PAUSE_RESUME_ROLE
     /// @notice Role identifier for addresses that can pause/unpause the vault
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
@@ -103,6 +112,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
     /// @param newTreasury New treasury address
     event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
 
+    // Review: Events are in blocks. Blocks have timestamp already.
     /// @notice Emitted when vault is paused
     /// @param timestamp Block timestamp when vault was paused
     event VaultPaused(uint256 timestamp);
@@ -139,6 +149,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
     /// @param shares The invalid shares amount
     error InvalidSharesAmount(uint256 shares);
 
+    // Review: Make a name more verbose. Ex. FeeTooHigh or MaxFeeExcedeed
     /// @notice Thrown when fee value exceeds maximum allowed
     /// @param fee The invalid fee value
     error InvalidFee(uint256 fee);
@@ -211,7 +222,8 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         OFFSET = offset_;
         TREASURY = treasury_;
         rewardFee = rewardFee_;
-
+        
+        // Review: Is it a good fit to assign all roles to a single admin address?
         _grantRole(DEFAULT_ADMIN_ROLE, admin_);
         _grantRole(PAUSER_ROLE, admin_);
         _grantRole(MANAGER_ROLE, admin_);
@@ -220,6 +232,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
 
     /* ========== ERC4626 OVERRIDES ========== */
 
+    // Review: Add a note that token approval is required before deposit/mint?
     /**
      * @notice Deposits assets into the vault and mints shares to receiver
      * @dev Harvests pending fees before deposit. First deposit must meet MIN_FIRST_DEPOSIT.
@@ -249,12 +262,15 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
             revert ExceedsMaxDeposit(assetsToDeposit, maxAssets);
         }
 
+        // Review: Here and after. When using fuctions from the parent contract use ParrentContract.functionName
         sharesMinted = _convertToShares(assetsToDeposit, Math.Rounding.Floor);
         if (sharesMinted == 0) revert ZeroAmount();
-
+        
+        // Review: Due to `using` statement replace with IERC20(asset()).safeTransferFrom(...)
         SafeERC20.safeTransferFrom(IERC20(asset()), msg.sender, address(this), assetsToDeposit);
 
         uint256 protocolSharesReceived = _depositToProtocol(assetsToDeposit);
+        // Review: This check is also present in the underling _depositToProtocol implementation? Consider adding this as a requirement to `_depositToProtocol` implementation.
         if (protocolSharesReceived == 0) revert ZeroAmount();
 
         _mint(shareReceiver, sharesMinted);
@@ -296,9 +312,11 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
             revert ExceedsMaxDeposit(assetsRequired, maxAssets);
         }
 
+        // Review: See similar comment in deposit()
         SafeERC20.safeTransferFrom(IERC20(asset()), msg.sender, address(this), assetsRequired);
 
         uint256 protocolSharesReceived = _depositToProtocol(assetsRequired);
+        // Review: See similar comment in deposit()
         if (protocolSharesReceived == 0) revert ZeroAmount();
 
         _mint(shareReceiver, sharesToMint);
@@ -339,6 +357,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
 
         uint256 assetsWithdrawn = _withdrawFromProtocol(assetsToWithdraw, assetReceiver);
 
+        // Review: Consider adding this condition as a requirement to `_withdrawFromProtocol` implementation.
         if (assetsWithdrawn < assetsToWithdraw) {
             revert InsufficientLiquidity(assetsToWithdraw, assetsWithdrawn);
         }
@@ -380,6 +399,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         uint256 assetsToWithdraw = _convertToAssets(sharesToRedeem, Math.Rounding.Floor);
         assetsWithdrawn = _withdrawFromProtocol(assetsToWithdraw, assetReceiver);
 
+        // Review: See similar comment in withdraw()
         if (assetsWithdrawn == 0) revert ZeroAmount();
 
         _burn(shareOwner, sharesToRedeem);
@@ -416,6 +436,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
 
     /* ========== FEE MANAGEMENT ========== */
 
+    // Review: The doc is missleading. Internal function is called on deposits and withdrawals. Should this public func be overriden we might confuse users.
     /**
      * @notice Manually triggers fee harvesting
      * @dev Calculates profit since last harvest and mints fee shares to treasury.
@@ -434,6 +455,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         uint256 currentTotal = totalAssets();
         uint256 supply = totalSupply();
 
+        // Review: Can be removed. Without it the behavior is the same.
         if (currentTotal == 0 || supply == 0) {
             lastTotalAssets = currentTotal;
             return;
@@ -450,6 +472,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         lastTotalAssets = currentTotal;
     }
 
+    // Review: @dev comment is outdated
     /**
      * @notice Internal helper to calculate fee shares that would be minted
      * @dev Simulates fee calculation without state changes. Used by maxWithdraw and _harvestFees.
@@ -465,7 +488,16 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         uint256 profit = currentTotal - lastTotalAssets;
         uint256 feeAmount = profit.mulDiv(rewardFee, MAX_BASIS_POINTS, Math.Rounding.Ceil);
 
+        // Review: Code below can be replaced with
+        // if (feeAmount == 0) {
+        //    return 0;
+        // }
+        // return feeAmount.mulDiv(supply, currentTotal - feeAmount, Math.Rounding.Ceil);
+
+
+        // Review: This condition is redundant
         if (feeAmount > profit) feeAmount = profit;
+        // Review: `feeAmount < currentTotal` is redundant since it can not be reached anyway here.
         if (feeAmount > 0 && feeAmount < currentTotal) {
             return feeAmount.mulDiv(supply, currentTotal - feeAmount, Math.Rounding.Ceil);
         }
@@ -480,9 +512,11 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
      */
     function setRewardFee(uint16 newFee) external onlyRole(MANAGER_ROLE) {
         if (newFee > MAX_REWARD_FEE_BASIS_POINTS) revert InvalidFee(newFee);
+        // Review: Check that newFee is different from current?
 
         _harvestFees();
 
+        // Review: Change first, emit second
         emit RewardFeeUpdated(rewardFee, newFee);
         rewardFee = newFee;
     }
@@ -537,6 +571,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
 
     /* ========== TOKEN RECOVERY ========== */
 
+    // Review: Add recover ETH and recover ERC721 functions?
     /**
      * @notice Recovers accidentally sent ERC20 tokens from the vault
      * @dev Only callable by MANAGER_ROLE. Cannot recover the vault's main asset.
@@ -600,7 +635,10 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         uint256 supply = totalSupply();
 
         if (supply == 0) return 0;
+        // Review: Add
+        // if (currentTotal == 0) return 0;
 
+        // Review: This code is used in many places. Move to helper function?
         uint256 feeShares = _calculateFeeShares(currentTotal, supply);
         uint256 adjustedSupply = supply + feeShares;
 
@@ -608,10 +646,12 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         // This accounts for the decimals offset used in inflation attack protection
         uint256 assets = shares.mulDiv(currentTotal + 1, adjustedSupply + 10 ** _decimalsOffset(), Math.Rounding.Floor);
 
+        // Review: Why subtracting 1 wei here? Is it really necessary?
         // Subtract 1 wei buffer for additional safety margin
         return assets > 1 ? assets - 1 : 0;
     }
 
+    // Review: Should this and other preview functions revert in case of paused state?
     /**
      * @notice Simulates the amount of shares that would be minted for a given deposit
      * @dev Overrides ERC4626 to account for pending fees that will be harvested during deposit.
@@ -630,7 +670,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
 
         uint256 feeShares = _calculateFeeShares(currentTotal, supply);
         uint256 adjustedSupply = supply + feeShares;
-
+        // Review: Use _decimalsOffset() here and after?
         shares = assets.mulDiv(adjustedSupply + 10 ** OFFSET, currentTotal + 1, Math.Rounding.Floor);
     }
 
@@ -656,6 +696,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         assets = shares.mulDiv(currentTotal + 1, adjustedSupply + 10 ** OFFSET, Math.Rounding.Ceil);
     }
 
+    // Review: Recovery mode should be handled via override (should correctly account for it).
     /**
      * @notice Simulates the amount of assets that would be received for redeeming given shares
      * @dev Overrides ERC4626 to account for pending fees that will be harvested during redemption.
@@ -678,6 +719,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         assets = shares.mulDiv(currentTotal + 1, adjustedSupply + 10 ** OFFSET, Math.Rounding.Floor);
     }
 
+    // Review: Recovery mode should be handled via override (should revert if recovery mode is active).
     /**
      * @notice Simulates the amount of shares that would be burned to withdraw given assets
      * @dev Overrides ERC4626 to account for pending fees that will be harvested during withdrawal.
@@ -706,12 +748,14 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
      * @return feeAmount Amount of assets that will be taken as fees on next harvest
      */
     function getPendingFees() external view returns (uint256 feeAmount) {
+        // Review: Create an internal func and use it in _calculateFeeShares too?
         uint256 currentTotal = totalAssets();
         uint256 totalAssets = lastTotalAssets;
         if (currentTotal <= totalAssets) return 0;
 
         uint256 profit = currentTotal - totalAssets;
         feeAmount = profit.mulDiv(rewardFee, MAX_BASIS_POINTS, Math.Rounding.Ceil);
+        // Review: This condition is redundant
         if (feeAmount > profit) feeAmount = profit;
     }
 
@@ -731,6 +775,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
      */
     function _refreshProtocolApproval() internal virtual {}
 
+    // Review: These functions and role should be in the EmergencyVault contract.
     /**
      * @notice Revokes protocol approvals
      * @dev Calls internal _revokeProtocolApproval() hook.

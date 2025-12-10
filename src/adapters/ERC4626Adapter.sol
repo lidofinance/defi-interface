@@ -9,6 +9,7 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Vault} from "../Vault.sol";
 import {EmergencyVault} from "../EmergencyVault.sol";
 
+// Review: Add a checklist to verify that TARGET_VAULT meets all requirements stated in the natspec.
 /**
  * @title ERC4626Adapter
  * @notice ERC4626 vault adapter that forwards capital into any underlying ERC4626 strategy
@@ -117,6 +118,7 @@ contract ERC4626Adapter is EmergencyVault {
      * @return targetAssets Total assets managed by the adapter (in target vault + idle balance during emergency)
      */
     function totalAssets() public view override returns (uint256 targetAssets) {
+        // Review: Use `_getProtocolBalance()` instead of lines below?
         uint256 targetShares = TARGET_VAULT.balanceOf(address(this));
 
         if (targetShares > 0) {
@@ -273,6 +275,7 @@ contract ERC4626Adapter is EmergencyVault {
      *      Useful if approval was revoked and needs to be restored.
      */
     function _refreshProtocolApproval() internal override {
+        // Review: Consider revert is emergency mode is active.
         ASSET.forceApprove(address(TARGET_VAULT), type(uint256).max);
     }
 }

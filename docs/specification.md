@@ -1,5 +1,7 @@
 # Lido Earn – Architecture & Specification
 
+// Review: Check that the spec matches the latest code
+
 ## Context and Problem Statement
 
 The project builds a DeFi accessibility layer for institutional capital. Stakeholders require standard vault primitives that plug into existing custody, reporting, and compliance systems without custom work. Existing DeFi integrations lack unified interfaces, consistent fee distribution, and robust emergency tooling. The architecture therefore must:
@@ -33,6 +35,8 @@ Lido Earn acts as a standardized wrapper for underlying yield strategies. It int
 4.  **`RewardDistributor`:** A dedicated contract (typically set as the treasury) that redeems accumulated shares and distributes assets to recipients based on immutable allocation percentages.
 
 ## Architecture & Design Rationale
+
+// Review: Add an expected deploy schema diagrams here
 
 The architecture of Lido Earn prioritizes security and predictability for institutional capital. Each structural decision represents a deliberate trade-off, where accepted risks are mitigated through specific on-chain mechanisms and operational controls.
 
@@ -86,6 +90,8 @@ The following diagram illustrates the complete flow of deposits and withdrawals 
 ![Deposit/Withdrawal Flow](dist/flow.png)
 
 ## Technical Specification
+
+// Review: It is not clear why we have separate contracts in the inheretance tree. I suggect having a single file for vault wrapper and for reward distributor.
 
 ### Contract `Vault` (Abstract)
 
