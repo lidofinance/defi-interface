@@ -1,4 +1,4 @@
-# Lido Earn – Architecture & Specification
+# Lido Defi-interface – Architecture & Specification
 
 ## Context and Problem Statement
 
@@ -23,7 +23,7 @@ To address the problem statement effectively while maintaining security constrai
 
 ## Proposed Solution
 
-Lido Earn acts as a standardized wrapper for underlying yield strategies. It introduces a modular architecture separating core accounting, emergency logic, and protocol-specific adaptation.
+Lido Defi-interface acts as a standardized wrapper for underlying yield strategies. It introduces a modular architecture separating core accounting, emergency logic, and protocol-specific adaptation.
 
 ### Key Components
 
@@ -34,7 +34,7 @@ Lido Earn acts as a standardized wrapper for underlying yield strategies. It int
 
 ## Architecture & Design Rationale
 
-The architecture of Lido Earn prioritizes security and predictability for institutional capital. Each structural decision represents a deliberate trade-off, where accepted risks are mitigated through specific on-chain mechanisms and operational controls.
+The architecture of Lido Defi-interface prioritizes security and predictability for institutional capital. Each structural decision represents a deliberate trade-off, where accepted risks are mitigated through specific on-chain mechanisms and operational controls.
 
 ### Standardization and Integration Security
 

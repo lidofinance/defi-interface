@@ -1,8 +1,8 @@
-# Lido Earn - DeFi Yield Vault Middleware
+# Lido Defi-interface - DeFi Yield Vault Middleware
 
-This repository contains the source code for the smart contracts implementing Lido Earn yield vault middleware.
+This repository contains the source code for the smart contracts implementing Lido Defi-interface yield vault middleware.
 
-Lido Earn is an ERC4626-compliant vault infrastructure that enables integration of arbitrary ERC4626 yield strategies into wallets and applications. The system provides a foundation for yield aggregation with comprehensive security controls, fee management, and reward distribution.
+Lido Defi-interface is an ERC4626-compliant vault infrastructure that enables integration of arbitrary ERC4626 yield strategies into wallets and applications. The system provides a foundation for yield aggregation with comprehensive security controls, fee management, and reward distribution.
 
 The architecture implements:
 1. **Abstract Vault base** with ERC4626 compliance, access control, fee harvesting, inflation attack protection, and emergency mechanisms

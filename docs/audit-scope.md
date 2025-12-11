@@ -15,7 +15,7 @@ Lines of code: ~600 (non-comment, non-blank)
 
 ## Context
 
-Lido Earn provides an ERC4626-compliant middleware layer that wraps external ERC4626 vaults (e.g., Morpho strategies) and adds fee harvesting, reward distribution, inflation-attack defenses, and a robust emergency withdrawal/recovery flow. The system is structured as a reusable `Vault` core, an `EmergencyVault` extension, and concrete adapters (today focused on ERC4626 targets) so new strategies can reuse the same risk controls while exposing a standard interface to wallets, custodians, and integrators.
+Lido Defi-interface provides an ERC4626-compliant middleware layer that wraps external ERC4626 vaults (e.g., Morpho strategies) and adds fee harvesting, reward distribution, inflation-attack defenses, and a robust emergency withdrawal/recovery flow. The system is structured as a reusable `Vault` core, an `EmergencyVault` extension, and concrete adapters (today focused on ERC4626 targets) so new strategies can reuse the same risk controls while exposing a standard interface to wallets, custodians, and integrators.
 
 ## Links
 

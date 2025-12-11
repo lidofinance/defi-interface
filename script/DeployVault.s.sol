@@ -15,7 +15,7 @@ contract DeployVault is Script {
     uint16 constant REWARD_FEE = 500;
     uint8 constant OFFSET = 10;
 
-    string constant NAME = "Lido Earn USDC Vault";
+    string constant NAME = "Lido Defi-interface USDC Vault";
     string constant SYMBOL = "leUSDC";
 
     ERC4626Adapter public vault;
