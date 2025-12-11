@@ -349,6 +349,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         }
 
         assetsWithdrawn = _convertToAssets(sharesToRedeem, Math.Rounding.Floor);
+        if (assetsWithdrawn == 0) revert ZeroAmount();
 
         _withdrawFromProtocol(assetsWithdrawn, assetReceiver);
         _burn(shareOwner, sharesToRedeem);

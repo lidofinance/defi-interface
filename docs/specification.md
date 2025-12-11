@@ -175,6 +175,31 @@ function mint(uint256 sharesToMint, address shareReceiver) public override retur
   * Harvests pending fees before calculating shares to ensure correct pricing.
   * Uses `_depositToProtocol` hook to move funds to the underlying strategy.
 
+#### `withdraw` / `redeem`
+
+Standard ERC4626 exit functions with fee harvesting.
+
+```solidity
+function withdraw(uint256 assetsToWithdraw, address assetReceiver, address shareOwner) public override returns (uint256 sharesBurned)
+function redeem(uint256 sharesToRedeem, address assetReceiver, address shareOwner) public override returns (uint256 assetsWithdrawn)
+```
+
+**Constraints:**
+
+  * Works even when vault is paused (allows user exit during emergencies).
+  * Reverts if `assets` or `shares` are zero.
+  * `redeem`: Reverts if `assetsWithdrawn` rounds down to zero (prevents burning shares for nothing).
+  * `withdraw`: Reverts if `sharesBurned` rounds down to zero.
+  * Reverts if the owner has insufficient shares.
+  * Caller must have sufficient allowance if not the share owner.
+
+**Notes:**
+
+  * Harvests pending fees before calculating shares/assets to ensure correct pricing.
+  * Uses `_withdrawFromProtocol` hook to pull funds from the underlying strategy.
+  * `withdraw`: Burns shares (rounded up) to return exact `assetsToWithdraw` to receiver.
+  * `redeem`: Returns assets (rounded down) for exact `sharesToRedeem` burned.
+
 #### `pause` / `unpause`
 
 Operational levers to suspend deposits and minting.
@@ -273,6 +298,28 @@ function previewDeposit(uint256 assets) public view virtual override returns (ui
   * Simulates fee calculation: calculates `feeShares` based on current profit and adds them to `totalSupply`.
   * Performs the conversion using the adjusted supply to provide accurate execution values.
   * Adheres to ERC4626 requirements (returns "no more than" the exact shares for deposits).
+
+#### `previewRedeem` / `previewWithdraw`
+
+Simulates the effects of a redemption or withdrawal, accounting for pending fees that will be harvested upon execution.
+
+```solidity
+function previewRedeem(uint256 shares) public view virtual override returns (uint256 assets)
+function previewWithdraw(uint256 assets) public view virtual override returns (uint256 shares)
+```
+
+**Returns:**
+
+  * `previewRedeem`: The amount of assets that would be received for the given shares.
+  * `previewWithdraw`: The amount of shares that would be burned for the given assets.
+
+**Notes:**
+
+  * Simulates fee calculation: calculates `feeShares` based on current profit and adds them to `totalSupply`.
+  * Performs the conversion using the adjusted supply to provide accurate execution values.
+  * `previewRedeem`: Uses floor rounding (returns "no less than" the exact assets for redemptions).
+  * `previewWithdraw`: Uses ceiling rounding (returns "no more than" the exact shares needed for withdrawals).
+  * Overridden in `EmergencyVault` to handle recovery mode and emergency restrictions.
 
 #### `getPendingFees`
 
@@ -389,6 +436,32 @@ function recoverERC20(address token, address receiver) external onlyRole(MANAGER
     - Mistakenly transferred tokens
     - Rewards in alternative tokens
   * **Security:** The restriction on recovering the vault asset prevents admin abuse of user deposits.
+
+#### `revokeProtocolApproval` / `refreshProtocolApproval`
+
+Manual controls for protocol token approvals.
+
+```solidity
+function revokeProtocolApproval() public onlyRole(EMERGENCY_ROLE)
+function refreshProtocolApproval() public onlyRole(EMERGENCY_ROLE)
+```
+
+**Constraints:**
+
+  * Only callable by addresses with `EMERGENCY_ROLE`.
+
+**Notes:**
+
+  * `revokeProtocolApproval`: Calls internal `_revokeProtocolApproval()` hook to revoke token approvals to underlying protocols.
+    - Used to cut off outbound token flows to a compromised or suspicious protocol.
+    - Does not freeze the vault itself - users can still exit if emergency mode is not active.
+    - Implementation is protocol-specific (defined in adapter contracts).
+  * `refreshProtocolApproval`: Calls internal `_refreshProtocolApproval()` hook to restore token approvals.
+    - Used to resume normal operations after an audit or security check.
+    - Typically resets approval to `type(uint256).max` for gas efficiency.
+    - Implementation is protocol-specific (defined in adapter contracts).
+  * These are **virtual hooks** - base `Vault` provides the interface, concrete adapters implement the actual approval logic.
+  * Automatically called during emergency withdrawal in adapters (approval is revoked to prevent further protocol interaction).
 
 -----
 
@@ -938,3 +1011,26 @@ function replaceRecipient(uint256 index, address newAccount) external onlyRole(R
 
   * Updates the address in the `recipients` array but preserves the original `basisPoints`.
   * Enables operational key rotation (e.g., wallet compromise) without redeploying the contract.
+
+#### `getRecipientsCount` / `getRecipient` / `getAllRecipients`
+
+View functions for querying recipient configuration.
+
+```solidity
+function getRecipientsCount() external view returns (uint256)
+function getRecipient(uint256 index) external view returns (address account, uint256 basisPoints)
+function getAllRecipients() external view returns (Recipient[] memory)
+```
+
+**Returns:**
+
+  * `getRecipientsCount`: Total number of recipients configured.
+  * `getRecipient`: The address and basis points allocation for the recipient at the specified index.
+  * `getAllRecipients`: Array of all recipients with their allocations.
+
+**Notes:**
+
+  * These functions provide read-only access to the recipient configuration.
+  * `getRecipient`: Reverts if `index` is out of bounds.
+  * `getAllRecipients`: Returns the complete list in a single call, useful for frontend integrations.
+  * Recipient allocations are immutable (basis points cannot be changed), but addresses can be rotated via `replaceRecipient`.
