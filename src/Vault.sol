@@ -450,10 +450,12 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
     function setRewardFee(uint16 newFee) external onlyRole(MANAGER_ROLE) {
         if (newFee > MAX_REWARD_FEE_BASIS_POINTS) revert InvalidFee(newFee);
 
-        _harvestFees();
+        uint16 oldFee = rewardFee;
+        if (newFee == oldFee) revert InvalidFee(newFee);
 
-        emit RewardFeeUpdated(rewardFee, newFee);
+        _harvestFees();
         rewardFee = newFee;
+        emit RewardFeeUpdated(oldFee, newFee);
     }
 
     /**

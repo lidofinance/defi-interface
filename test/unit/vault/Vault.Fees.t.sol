@@ -422,6 +422,8 @@ contract VaultFeesTest is VaultTestBase {
         depositAmount = uint96(bound(depositAmount, 10_000e6, type(uint96).max / 2));
         feeRate = uint16(bound(feeRate, 0, 2000)); // 0-20% (MAX_REWARD_FEE)
 
+        vm.assume(feeRate != vault.rewardFee());
+
         // Set the fee rate
         vault.setRewardFee(feeRate);
 

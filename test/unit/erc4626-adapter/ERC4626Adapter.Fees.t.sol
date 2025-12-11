@@ -25,6 +25,7 @@ contract ERC4626AdapterFeesTest is ERC4626AdapterTestBase {
     /// @dev Validates that set reward fee valid range.
     function testFuzz_SetRewardFee_ValidRange(uint16 newFee) public {
         newFee = uint16(bound(uint256(newFee), 0, vault.MAX_REWARD_FEE_BASIS_POINTS()));
+        vm.assume(newFee != REWARD_FEE);
 
         vm.expectEmit(true, true, false, true);
         emit Vault.RewardFeeUpdated(REWARD_FEE, newFee);
@@ -65,6 +66,13 @@ contract ERC4626AdapterFeesTest is ERC4626AdapterTestBase {
 
         vm.expectRevert(abi.encodeWithSelector(Vault.InvalidFee.selector, invalidFee));
         vault.setRewardFee(invalidFee);
+    }
+
+    /// @notice Ensures set reward fee reverts when setting same value.
+    /// @dev Verifies the revert protects against setting same value.
+    function test_SetRewardFee_RevertIf_SameValue() public {
+        vm.expectRevert(abi.encodeWithSelector(Vault.InvalidFee.selector, REWARD_FEE));
+        vault.setRewardFee(REWARD_FEE);
     }
 
     /// @notice Ensures set reward fee reverts when not fee manager.

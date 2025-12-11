@@ -469,6 +469,8 @@ contract VaultWithdrawTest is VaultTestBase {
         profitAmount = uint96(bound(profitAmount, 0, depositAmount));
         rewardFeeBps = uint16(bound(rewardFeeBps, 0, 2000));
 
+        vm.assume(rewardFeeBps != vault.rewardFee());
+
         vault.setRewardFee(rewardFeeBps);
 
         vm.prank(alice);

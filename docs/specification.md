@@ -334,12 +334,15 @@ function setRewardFee(uint16 newFee) external onlyRole(MANAGER_ROLE)
 
 **Constraints:**
 
-  * `newFee` must not exceed `MAX_REWARD_FEE_BASIS_POINTS`.
+  * `newFee` must not exceed `MAX_REWARD_FEE_BASIS_POINTS` (2,000 basis points / 20%).
+  * `newFee` must be different from the current fee (reverts with `InvalidFee` if the same).
+  * Only callable by addresses with `MANAGER_ROLE`.
 
 **Notes:**
 
   * Triggers `_harvestFees()` *before* updating the fee.
   * Ensures fees accrued under the old rate are realized immediately, so the new rate applies only to future performance.
+  * Emits `RewardFeeUpdated(uint16 oldFee, uint16 newFee)` event.
 
 #### `setTreasury`
 

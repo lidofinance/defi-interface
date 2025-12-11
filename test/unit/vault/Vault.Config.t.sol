@@ -52,6 +52,13 @@ contract VaultConfigTest is VaultTestBase {
         vault.setRewardFee(invalidFee);
     }
 
+    /// @notice Ensures set reward fee reverts when setting same value.
+    /// @dev Verifies the revert protects against setting same value.
+    function test_SetRewardFee_RevertIf_SameValue() public {
+        vm.expectRevert(abi.encodeWithSelector(Vault.InvalidFee.selector, REWARD_FEE));
+        vault.setRewardFee(REWARD_FEE);
+    }
+
     /// @notice Ensures set reward fee reverts when not fee manager.
     /// @dev Verifies the revert protects against not fee manager.
     function test_SetRewardFee_RevertIf_NotFeeManager() public {
@@ -139,6 +146,7 @@ contract VaultConfigTest is VaultTestBase {
     /// @dev Validates that set reward fee within bounds.
     function testFuzz_SetRewardFee_WithinBounds(uint16 newFee) public {
         newFee = uint16(bound(uint256(newFee), 0, vault.MAX_REWARD_FEE_BASIS_POINTS()));
+        vm.assume(newFee != REWARD_FEE);
 
         vault.setRewardFee(newFee);
 
