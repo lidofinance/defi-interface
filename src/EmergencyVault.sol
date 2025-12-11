@@ -335,14 +335,10 @@ abstract contract EmergencyVault is Vault {
     {
         if (shares == 0) revert ZeroAmount();
         if (receiver == address(0)) revert ZeroAddress();
-        if (msg.sender != owner) {
-            _spendAllowance(owner, msg.sender, shares);
-        }
-        if (shares > balanceOf(owner)) {
-            revert InsufficientShares(shares, balanceOf(owner));
-        }
+        if (shares > balanceOf(owner)) revert InsufficientShares(shares, balanceOf(owner));
+        if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
 
-        assets = shares.mulDiv(recoveryAssets, recoverySupply, Math.Rounding.Floor);
+        assets = convertToAssets(shares);
         if (assets == 0) revert ZeroAmount();
 
         _burn(owner, shares);
