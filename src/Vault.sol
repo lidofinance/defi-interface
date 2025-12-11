@@ -419,6 +419,14 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         lastTotalAssets = currentTotal;
     }
 
+    function _calculateFeeAmount(uint256 currentTotal) internal view returns (uint256 feeAmount) {
+        if (currentTotal <= lastTotalAssets || rewardFee == 0) {
+            return 0;
+        }
+        uint256 profit = currentTotal - lastTotalAssets;
+        feeAmount = profit.mulDiv(rewardFee, MAX_BASIS_POINTS, Math.Rounding.Ceil);
+    }
+
     /**
      * @notice Internal helper to calculate fee shares that would be minted
      * @dev Simulates fee calculation without state changes. Used by maxWithdraw and _harvestFees.
@@ -427,17 +435,11 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
      * @return feeShares Number of shares that would be minted as fees
      */
     function _calculateFeeShares(uint256 currentTotal, uint256 supply) internal view returns (uint256 feeShares) {
-        if (currentTotal <= lastTotalAssets || rewardFee == 0 || supply == 0) {
-            return 0;
-        }
-
-        uint256 profit = currentTotal - lastTotalAssets;
-        uint256 feeAmount = profit.mulDiv(rewardFee, MAX_BASIS_POINTS, Math.Rounding.Ceil);
-
+        if (supply == 0) return 0;
+        uint256 feeAmount = _calculateFeeAmount(currentTotal);
         if (feeAmount > 0 && feeAmount < currentTotal) {
             return feeAmount.mulDiv(supply, currentTotal - feeAmount, Math.Rounding.Ceil);
         }
-
         return 0;
     }
 
@@ -674,12 +676,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
      * @return feeAmount Amount of assets that will be taken as fees on next harvest
      */
     function getPendingFees() external view returns (uint256 feeAmount) {
-        uint256 currentTotal = totalAssets();
-        uint256 totalAssets = lastTotalAssets;
-        if (currentTotal <= totalAssets) return 0;
-
-        uint256 profit = currentTotal - totalAssets;
-        feeAmount = profit.mulDiv(rewardFee, MAX_BASIS_POINTS, Math.Rounding.Ceil);
+        feeAmount = _calculateFeeAmount(totalAssets());
     }
 
     /* ========== PROTOCOL APPROVAL MANAGEMENT ========== */
