@@ -178,6 +178,18 @@ contract RewardDistributorTest is TestConfig {
         assertEq(distributor.getRecipientsCount(), 2);
     }
 
+    /// @notice Ensures constructor reverts when invalid basis points provided.
+    /// @dev Verifies the revert protects against invalid basis points.
+    function test_Constructor_RevertIf_InvalidBasisPoints() public {
+        address[] memory recs = new address[](1);
+        recs[0] = recipientA;
+        uint256[] memory bps = new uint256[](1);
+        bps[0] = 100_000;
+
+        vm.expectRevert(abi.encodeWithSelector(RewardDistributor.InvalidBasisPoints.selector, recipientA, 100_000));
+        new RewardDistributor(admin, recs, bps);
+    }
+
     /* ========== RECIPIENT REPLACEMENT TESTS ========== */
 
     /// @notice Tests that admin can replace recipient address and emit event.

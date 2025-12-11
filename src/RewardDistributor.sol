@@ -40,13 +40,13 @@ contract RewardDistributor is AccessControl {
      */
     struct Recipient {
         address account;
-        uint256 basisPoints;
+        uint16 basisPoints;
     }
 
     /* ========== STATE VARIABLES ========== */
 
     /// @notice Array of all recipients with their allocation percentages
-    Recipient[] public recipients;
+    Recipient[] private recipients;
 
     /// @notice Mapping to track if an address is already configured as a recipient
     mapping(address => bool) private recipientExists;
@@ -131,11 +131,9 @@ contract RewardDistributor is AccessControl {
      */
     constructor(address admin_, address[] memory recipients_, uint256[] memory basisPoints_) {
         if (admin_ == address(0)) revert InvalidAdminAddress(admin_);
-
         if (recipients_.length != basisPoints_.length) {
             revert InvalidRecipientsLength();
         }
-
         if (recipients_.length == 0) {
             revert InvalidRecipientsLength();
         }
@@ -149,7 +147,7 @@ contract RewardDistributor is AccessControl {
             if (recipientAccount == address(0)) {
                 revert InvalidRecipientAddress(recipientAccount);
             }
-            if (recipientBps == 0) {
+            if (recipientBps == 0 || recipientBps > type(uint16).max) {
                 revert InvalidBasisPoints(recipientAccount, recipientBps);
             }
             if (recipientExists[recipientAccount]) {
@@ -157,7 +155,7 @@ contract RewardDistributor is AccessControl {
             }
 
             recipientExists[recipientAccount] = true;
-            recipients.push(Recipient({account: recipientAccount, basisPoints: recipientBps}));
+            recipients.push(Recipient({account: recipientAccount, basisPoints: uint16(recipientBps)}));
 
             totalBps += recipientBps;
         }
