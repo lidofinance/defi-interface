@@ -25,13 +25,12 @@ import {Vault} from "./Vault.sol";
  *         - Normal withdraw/redeem are blocked during emergency mode
  *         - Can be called multiple times if protocol has partial liquidity
  *
- *      2. Admin calls activateRecovery(declaredAmount) to enable user claims
- *         - Admin explicitly declares recoverable amount (safety check)
+ *      2. Admin calls activateRecovery() to enable user claims
  *         - Harvests pending fees before snapshot
  *         - Calculates and emits implicitLoss (emergencyTotalAssets - recoverable)
  *         - Snapshots recoveryAssets/recoverySupply for pro-rata distribution
  *
- *      3. Users call emergencyRedeem() to claim proportional share
+ *      3. Users call redeem() to claim proportional share
  *         - Formula: userAssets = userShares * recoveryAssets / recoverySupply
  *
  *      Supported Scenarios:
@@ -148,9 +147,6 @@ abstract contract EmergencyVault is Vault {
     );
 
     /* ========== ERRORS ========== */
-
-    /// @notice Thrown when emergency recovery is not active
-    error RecoveryNotActive();
 
     /// @notice Thrown when trying to activate recovery that's already active
     error RecoveryAlreadyActive();
@@ -337,9 +333,6 @@ abstract contract EmergencyVault is Vault {
         nonReentrant
         returns (uint256 assets)
     {
-        if (!recoveryMode) {
-            revert RecoveryNotActive();
-        }
         if (shares == 0) revert ZeroAmount();
         if (receiver == address(0)) revert ZeroAddress();
         if (msg.sender != owner) {
