@@ -52,10 +52,4 @@ contract VaultInitializationTest is VaultTestBase {
         assertEq(vault.rewardFee(), REWARD_FEE);
         assertEq(vault.lastTotalAssets(), 0);
     }
-
-    /// @notice Tests that min first deposit constant.
-    /// @dev Validates that min first deposit constant.
-    function test_MinFirstDepositConstant() public view {
-        assertEq(vault.MIN_FIRST_DEPOSIT(), 1_000);
-    }
 }

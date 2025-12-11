@@ -155,7 +155,7 @@ contract ERC4626AdapterMaxDepositTest is ERC4626AdapterTestBase {
     /// @dev Validates that max deposit updates after deposit.
     function testFuzz_MaxDeposit_UpdatesAfterDeposit(uint96 depositAmount) public {
         uint256 initialMaxDeposit = vault.maxDeposit(alice);
-        uint256 minDeposit = vault.MIN_FIRST_DEPOSIT();
+        uint256 minDeposit = 1;
         // Если maxDeposit меньше minDeposit, пропускаем тест
         vm.assume(initialMaxDeposit >= minDeposit);
         // Ограничиваем верхнюю границу для избежания проблем с bound
@@ -210,8 +210,8 @@ contract ERC4626AdapterMaxDepositTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes that deposit with cap updates max deposit.
     /// @dev Validates that deposit with cap updates max deposit.
     function testFuzz_Deposit_WithCap_UpdatesMaxDeposit(uint96 capAmount, uint96 depositAmount) public {
-        uint256 cap = bound(uint256(capAmount), vault.MIN_FIRST_DEPOSIT() * 2, type(uint96).max);
-        uint256 deposit = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), cap / 2); // deposit должен быть меньше половины cap для теста
+        uint256 cap = bound(uint256(capAmount), 1 * 2, type(uint96).max);
+        uint256 deposit = bound(uint256(depositAmount), 1, cap / 2); // deposit должен быть меньше половины cap для теста
         usdc.mint(alice, deposit);
 
         targetVault.setLiquidityCap(cap);

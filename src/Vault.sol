@@ -19,7 +19,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
  *      - ERC4626 standard compliance for tokenized vault shares
  *      - Role-based access control for administrative functions
  *      - Performance fee harvesting with configurable rates (0-20%)
- *      - Inflation attack protection via decimals offset and minimum first deposit
+ *      - Inflation attack protection via decimals offset
  *      - Pausable deposits and withdrawals
  *      - Reentrancy guards on state-changing operations
  *      - ERC20Permit support for gasless approvals
@@ -40,9 +40,6 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
 
     /// @notice Maximum allowed reward fee in basis points (20%)
     uint256 public constant MAX_REWARD_FEE_BASIS_POINTS = 2_000;
-
-    /// @notice Minimum amount required for first deposit to prevent inflation attacks
-    uint256 public constant MIN_FIRST_DEPOSIT = 1_000;
 
     /// @notice Maximum allowed decimals offset for share inflation protection
     uint8 public constant MAX_OFFSET = 23;
@@ -143,11 +140,6 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
     /// @param fee The invalid fee value
     error InvalidFee(uint256 fee);
 
-    /// @notice Thrown when first deposit is below minimum required amount
-    /// @param required Minimum amount required
-    /// @param provided Amount provided
-    error FirstDepositTooSmall(uint256 required, uint256 provided);
-
     /// @notice Thrown when decimals offset exceeds maximum allowed
     /// @param offset The invalid offset value
     error OffsetTooHigh(uint8 offset);
@@ -222,7 +214,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
 
     /**
      * @notice Deposits assets into the vault and mints shares to receiver
-     * @dev Harvests pending fees before deposit. First deposit must meet MIN_FIRST_DEPOSIT.
+     * @dev Harvests pending fees before deposit.
      *      Reverts if vault is paused.
      * @param assetsToDeposit Amount of assets to deposit
      * @param shareReceiver Address that will receive the minted shares
@@ -238,9 +230,6 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
     {
         if (assetsToDeposit == 0) revert ZeroAmount();
         if (shareReceiver == address(0)) revert ZeroAddress();
-        if (totalSupply() == 0 && assetsToDeposit < MIN_FIRST_DEPOSIT) {
-            revert FirstDepositTooSmall(MIN_FIRST_DEPOSIT, assetsToDeposit);
-        }
 
         _harvestFees();
 
@@ -287,9 +276,6 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
 
         assetsRequired = _convertToAssets(sharesToMint, Math.Rounding.Ceil);
         if (assetsRequired == 0) revert ZeroAmount();
-        if (totalSupply() == 0 && assetsRequired < MIN_FIRST_DEPOSIT) {
-            revert FirstDepositTooSmall(MIN_FIRST_DEPOSIT, assetsRequired);
-        }
 
         uint256 maxAssets = maxDeposit(shareReceiver);
         if (assetsRequired > maxAssets) {

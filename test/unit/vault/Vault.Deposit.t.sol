@@ -25,7 +25,7 @@ contract VaultDepositTest is VaultTestBase {
     /// @notice Exercises fuzzed deposit happy path.
     /// @dev Verifies balances and state remain correct in the success scenario.
     function testFuzz_Deposit_Basic(uint96 depositAmount) public {
-        depositAmount = uint96(bound(depositAmount, vault.MIN_FIRST_DEPOSIT(), type(uint96).max / 2));
+        depositAmount = uint96(bound(depositAmount, 1, type(uint96).max / 2));
         uint256 expectedShares = depositAmount * 10 ** vault.OFFSET();
         asset.mint(alice, depositAmount);
 
@@ -72,7 +72,7 @@ contract VaultDepositTest is VaultTestBase {
     /// @notice Fuzzes deposit with multiple users.
     /// @dev Verifies accounting remains correct across participants.
     function testFuzz_Deposit_MultipleUsers(uint96 aliceAmount, uint96 bobAmount) public {
-        aliceAmount = uint96(bound(aliceAmount, vault.MIN_FIRST_DEPOSIT(), type(uint96).max / 2));
+        aliceAmount = uint96(bound(aliceAmount, 1, type(uint96).max / 2));
         bobAmount = uint96(bound(bobAmount, 1, type(uint96).max / 2));
         asset.mint(alice, aliceAmount);
         asset.mint(bob, bobAmount);
@@ -118,28 +118,6 @@ contract VaultDepositTest is VaultTestBase {
         vault.deposit(10_000e6, alice);
     }
 
-    /// @notice Ensures first deposit reverts when too small.
-    /// @dev Verifies the revert protects against too small.
-    function test_FirstDeposit_RevertIf_TooSmall() public {
-        vm.expectRevert(abi.encodeWithSelector(Vault.FirstDepositTooSmall.selector, 1000, 999));
-
-        vm.prank(alice);
-        vault.deposit(999, alice);
-    }
-
-    /// @notice Tests that first deposit success if minimum met.
-    /// @dev Validates that first deposit success if minimum met.
-    function test_FirstDeposit_SuccessIf_MinimumMet() public {
-        uint256 depositAmount = 1000;
-        uint256 expectedShares = depositAmount * 10 ** vault.OFFSET();
-
-        vm.prank(alice);
-        uint256 shares = vault.deposit(depositAmount, alice);
-
-        assertEq(shares, expectedShares);
-        assertEq(vault.balanceOf(alice), shares);
-    }
-
     /// @notice Tests that second deposit can be small.
     /// @dev Validates that second deposit can be small.
     function test_SecondDeposit_CanBeSmall() public {
@@ -172,7 +150,7 @@ contract VaultDepositTest is VaultTestBase {
     /// @notice Exercises fuzzed mint happy path.
     /// @dev Verifies balances and state remain correct in the success scenario.
     function testFuzz_Mint_Basic(uint96 sharesToMint) public {
-        uint256 minShares = vault.MIN_FIRST_DEPOSIT() * 10 ** vault.OFFSET();
+        uint256 minShares = 1 * 10 ** vault.OFFSET();
         sharesToMint = uint96(bound(sharesToMint, minShares, type(uint96).max / 2));
         uint256 expectedAssets = vault.previewMint(sharesToMint);
         asset.mint(alice, expectedAssets);
@@ -201,24 +179,10 @@ contract VaultDepositTest is VaultTestBase {
         vault.mint(10_000e6, address(0));
     }
 
-    /// @notice Ensures mint reverts when first deposit too small.
-    /// @dev Verifies the revert protects against first deposit too small.
-    function test_Mint_RevertIf_FirstDepositTooSmall() public {
-        uint256 sharesToMint = (vault.MIN_FIRST_DEPOSIT() - 1) * 10 ** vault.OFFSET();
-        uint256 expectedAssets = vault.previewMint(sharesToMint);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(Vault.FirstDepositTooSmall.selector, vault.MIN_FIRST_DEPOSIT(), expectedAssets)
-        );
-
-        vm.prank(alice);
-        vault.mint(sharesToMint, alice);
-    }
-
     /// @notice Ensures mint reverts when paused.
     /// @dev Verifies the revert protects against paused.
     function test_Mint_RevertIf_Paused() public {
-        uint256 sharesToMint = vault.MIN_FIRST_DEPOSIT() * 10 ** vault.OFFSET();
+        uint256 sharesToMint = 1 * 10 ** vault.OFFSET();
 
         vault.pause();
 

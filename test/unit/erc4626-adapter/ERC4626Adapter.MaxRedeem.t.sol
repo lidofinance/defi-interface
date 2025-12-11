@@ -168,7 +168,7 @@ contract ERC4626AdapterMaxRedeemTest is ERC4626AdapterTestBase {
     /// @dev Verifies correct behavior with minimal share amounts
     function test_MaxRedeem_WithVerySmallAmounts() public {
         // Alice makes minimum deposit
-        uint256 minDeposit = vault.MIN_FIRST_DEPOSIT();
+        uint256 minDeposit = 1;
         vm.prank(alice);
         vault.deposit(minDeposit, alice);
 
@@ -353,7 +353,7 @@ contract ERC4626AdapterMaxRedeemTest is ERC4626AdapterTestBase {
     /// @notice Fuzz test: maxRedeem with different user balances
     /// @dev Verifies maxRedeem correctness across various deposit amounts
     function testFuzz_MaxRedeem_WithDifferentUserBalances(uint96 depositAmount) public {
-        uint256 deposit = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 deposit = bound(uint256(depositAmount), 1, type(uint96).max);
         usdc.mint(alice, deposit);
 
         vm.prank(alice);
@@ -409,7 +409,7 @@ contract ERC4626AdapterMaxRedeemTest is ERC4626AdapterTestBase {
     /// @notice Fuzz test: maxRedeem in recovery mode with different balances
     /// @dev Verifies recovery mode always returns full balance regardless of amount
     function testFuzz_MaxRedeem_InRecoveryModeWithDifferentBalances(uint96 depositAmount) public {
-        uint256 deposit = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 deposit = bound(uint256(depositAmount), 1, type(uint96).max);
         usdc.mint(alice, deposit);
 
         vm.prank(alice);
@@ -434,8 +434,8 @@ contract ERC4626AdapterMaxRedeemTest is ERC4626AdapterTestBase {
         uint96 bobDeposit,
         uint96 liquidityCap
     ) public {
-        uint256 aliceAmount = bound(uint256(aliceDeposit), vault.MIN_FIRST_DEPOSIT(), type(uint88).max);
-        uint256 bobAmount = bound(uint256(bobDeposit), vault.MIN_FIRST_DEPOSIT(), type(uint88).max);
+        uint256 aliceAmount = bound(uint256(aliceDeposit), 1, type(uint88).max);
+        uint256 bobAmount = bound(uint256(bobDeposit), 1, type(uint88).max);
 
         usdc.mint(alice, aliceAmount);
         vm.prank(alice);

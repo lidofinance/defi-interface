@@ -8,7 +8,7 @@ contract ERC4626AdapterWithdrawTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes that withdraw leaves positive shares.
     /// @dev Validates that withdraw leaves positive shares.
     function testFuzz_Withdraw_LeavesPositiveShares(uint96 depositAmount, uint96 withdrawAmount) public {
-        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 depositAssets = bound(uint256(depositAmount), 2, type(uint96).max);
         uint256 withdrawAssets = bound(uint256(withdrawAmount), 1, depositAssets - 1);
         usdc.mint(alice, depositAssets);
 
@@ -29,7 +29,7 @@ contract ERC4626AdapterWithdrawTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes withdraw emits the expected event.
     /// @dev Verifies the emitted event data matches the scenario.
     function testFuzz_Withdraw_EmitsEvent(uint96 depositAmount, uint96 withdrawAmount) public {
-        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 depositAssets = bound(uint256(depositAmount), 1, type(uint96).max);
         uint256 withdrawAssets = bound(uint256(withdrawAmount), 1, depositAssets);
         usdc.mint(alice, depositAssets);
 
@@ -46,7 +46,7 @@ contract ERC4626AdapterWithdrawTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes that withdraw reverts when insufficient shares.
     /// @dev Verifies the revert protects against insufficient shares.
     function testFuzz_Withdraw_RevertIf_InsufficientShares(uint96 depositAmount, uint96 requestedAssets) public {
-        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max - 1);
+        uint256 depositAssets = bound(uint256(depositAmount), 1, type(uint96).max - 1);
         uint256 requestAssets = bound(uint256(requestedAssets), depositAssets + 1, type(uint96).max);
         usdc.mint(alice, depositAssets);
 
@@ -64,8 +64,8 @@ contract ERC4626AdapterWithdrawTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes that withdraw reverts when insufficient liquidity.
     /// @dev Verifies the revert protects against insufficient liquidity.
     function testFuzz_Withdraw_RevertIf_InsufficientLiquidity(uint96 depositAmount, uint96 withdrawAmount) public {
-        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
-        uint256 withdrawAssets = bound(uint256(withdrawAmount), 2, depositAssets);
+        uint256 depositAssets = bound(uint256(depositAmount), 10, type(uint96).max);
+        uint256 withdrawAssets = bound(uint256(withdrawAmount), 10, depositAssets);
         usdc.mint(alice, depositAssets);
 
         vm.prank(alice);
@@ -83,7 +83,7 @@ contract ERC4626AdapterWithdrawTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes that redeem all shares.
     /// @dev Validates that redeem all shares.
     function testFuzz_Redeem_AllShares(uint96 depositAmount) public {
-        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 depositAssets = bound(uint256(depositAmount), 1, type(uint96).max);
         usdc.mint(alice, depositAssets);
 
         vm.prank(alice);
@@ -103,7 +103,7 @@ contract ERC4626AdapterWithdrawTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes that withdraw delegated with approval.
     /// @dev Validates that withdraw delegated with approval.
     function testFuzz_Withdraw_DelegatedWithApproval(uint96 depositAmount, uint96 withdrawAmount) public {
-        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 depositAssets = bound(uint256(depositAmount), 1, type(uint96).max);
         uint256 withdrawAssets = bound(uint256(withdrawAmount), 1, depositAssets);
         usdc.mint(alice, depositAssets);
 
@@ -135,7 +135,7 @@ contract ERC4626AdapterWithdrawTest is ERC4626AdapterTestBase {
     function testFuzz_Withdraw_DelegatedRevertIf_InsufficientAllowance(uint96 depositAmount, uint96 withdrawAmount)
         public
     {
-        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 depositAssets = bound(uint256(depositAmount), 1, type(uint96).max);
         uint256 withdrawAssets = bound(uint256(withdrawAmount), 1, depositAssets);
         usdc.mint(alice, depositAssets);
 
@@ -155,7 +155,7 @@ contract ERC4626AdapterWithdrawTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes that withdraw delegated revert if no approval.
     /// @dev Validates that withdraw delegated revert if no approval.
     function testFuzz_Withdraw_DelegatedRevertIf_NoApproval(uint96 depositAmount, uint96 withdrawAmount) public {
-        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 depositAssets = bound(uint256(depositAmount), 1, type(uint96).max);
         uint256 withdrawAssets = bound(uint256(withdrawAmount), 1, depositAssets);
         usdc.mint(alice, depositAssets);
 
@@ -170,7 +170,7 @@ contract ERC4626AdapterWithdrawTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes that withdraw self does not require approval.
     /// @dev Validates that withdraw self does not require approval.
     function testFuzz_Withdraw_SelfDoesNotRequireApproval(uint96 depositAmount, uint96 withdrawAmount) public {
-        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 depositAssets = bound(uint256(depositAmount), 1, type(uint96).max);
         uint256 withdrawAssets = bound(uint256(withdrawAmount), 1, depositAssets);
         usdc.mint(alice, depositAssets);
 
@@ -192,7 +192,7 @@ contract ERC4626AdapterWithdrawTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes that withdraw delegated with unlimited approval.
     /// @dev Validates that withdraw delegated with unlimited approval.
     function testFuzz_Withdraw_DelegatedWithUnlimitedApproval(uint96 depositAmount, uint96 withdrawAmount) public {
-        uint256 depositAssets = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 depositAssets = bound(uint256(depositAmount), 1, type(uint96).max);
         uint256 withdrawAssets = bound(uint256(withdrawAmount), 1, depositAssets);
         usdc.mint(alice, depositAssets);
 

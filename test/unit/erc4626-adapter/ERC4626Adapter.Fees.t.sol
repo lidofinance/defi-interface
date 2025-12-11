@@ -169,7 +169,7 @@ contract ERC4626AdapterFeesTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes that harvest fees with profit.
     /// @dev Validates that harvest fees with profit.
     function testFuzz_HarvestFees_WithProfit(uint96 depositAmount, uint96 profitAmount) public {
-        uint256 deposit = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 deposit = bound(uint256(depositAmount), 1, type(uint96).max);
         uint256 profit = bound(uint256(profitAmount), 100, type(uint96).max / 2); // Минимальный профит 100, max /2 для избежания overflow
         usdc.mint(alice, deposit);
 
@@ -357,8 +357,8 @@ contract ERC4626AdapterFeesTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes that get pending fees with profit.
     /// @dev Validates that get pending fees with profit.
     function testFuzz_GetPendingFees_WithProfit(uint96 depositAmount, uint96 profitAmount) public {
-        uint256 deposit = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
-        uint256 profit = bound(uint256(profitAmount), 100, type(uint96).max / 2); // Минимальный профит 100 для точных вычислений
+        uint256 deposit = bound(uint256(depositAmount), 1000, type(uint96).max);
+        uint256 profit = bound(uint256(profitAmount), 100, type(uint96).max / 2);
         usdc.mint(alice, deposit);
 
         vm.prank(alice);
@@ -369,7 +369,6 @@ contract ERC4626AdapterFeesTest is ERC4626AdapterTestBase {
         uint256 expectedFeeAmount = (profit * vault.rewardFee()) / vault.MAX_BASIS_POINTS();
 
         uint256 pendingFees = vault.getPendingFees();
-        // Используем больше tolerance для фаззинг тестов из-за rounding в разных местах
         assertApproxEqAbs(pendingFees, expectedFeeAmount, expectedFeeAmount / 1000 + 10);
     }
 

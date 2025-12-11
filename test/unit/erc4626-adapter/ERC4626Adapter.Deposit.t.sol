@@ -8,7 +8,7 @@ contract ERC4626AdapterDepositTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes deposit emits the expected event.
     /// @dev Verifies the emitted event data matches the scenario.
     function testFuzz_Deposit_EmitsEvent(uint96 depositAmount) public {
-        uint256 amount = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 amount = bound(uint256(depositAmount), 1, type(uint96).max);
         usdc.mint(alice, amount);
 
         uint256 expectedShares = vault.previewDeposit(amount);
@@ -23,7 +23,7 @@ contract ERC4626AdapterDepositTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes deposit with multiple users.
     /// @dev Verifies accounting remains correct across participants.
     function testFuzz_Deposit_MultipleUsers(uint96 aliceAmount, uint96 bobAmount) public {
-        uint256 aliceDeposit = bound(uint256(aliceAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 aliceDeposit = bound(uint256(aliceAmount), 1, type(uint96).max);
         uint256 bobDeposit = bound(uint256(bobAmount), 1, type(uint96).max);
         usdc.mint(alice, aliceDeposit);
         usdc.mint(bob, bobDeposit);
@@ -46,7 +46,7 @@ contract ERC4626AdapterDepositTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes that deposit updates target vault balance.
     /// @dev Validates that deposit updates target vault balance.
     function testFuzz_Deposit_UpdatesTargetVaultBalance(uint96 depositAmount) public {
-        uint256 amount = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 amount = bound(uint256(depositAmount), 1, type(uint96).max);
         usdc.mint(alice, amount);
 
         uint256 targetBalanceBefore = targetVault.balanceOf(address(vault));
@@ -97,28 +97,5 @@ contract ERC4626AdapterDepositTest is ERC4626AdapterTestBase {
         vm.expectRevert();
         vm.prank(alice);
         vault.deposit(10_000e6, alice);
-    }
-
-    /// @notice Ensures first deposit reverts when too small.
-    /// @dev Verifies the revert protects against too small.
-    function test_FirstDeposit_RevertIf_TooSmall() public {
-        vm.expectRevert(abi.encodeWithSelector(Vault.FirstDepositTooSmall.selector, 1000, 999));
-        vm.prank(alice);
-        vault.deposit(999, alice);
-    }
-
-    /// @notice Fuzzes that first deposit success if minimum met.
-    /// @dev Validates that first deposit success if minimum met.
-    function testFuzz_FirstDeposit_SuccessIf_MinimumMet(uint96 depositAmount) public {
-        uint256 amount = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
-        usdc.mint(alice, amount);
-
-        uint256 expectedShares = amount * 10 ** vault.OFFSET();
-
-        vm.prank(alice);
-        uint256 shares = vault.deposit(amount, alice);
-
-        assertEq(shares, expectedShares);
-        assertEq(vault.balanceOf(alice), shares);
     }
 }

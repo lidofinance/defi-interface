@@ -55,7 +55,7 @@ contract ERC4626AdapterInitializationTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes that total assets reflects target vault balance.
     /// @dev Validates that total assets reflects target vault balance.
     function testFuzz_TotalAssets_ReflectsTargetVaultBalance(uint96 depositAmount) public {
-        uint256 amount = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 amount = bound(uint256(depositAmount), 1, type(uint96).max);
         usdc.mint(alice, amount);
 
         vm.prank(alice);
@@ -71,7 +71,7 @@ contract ERC4626AdapterInitializationTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes that max withdraw.
     /// @dev Validates that max withdraw.
     function testFuzz_MaxWithdraw(uint96 depositAmount) public {
-        uint256 amount = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 amount = bound(uint256(depositAmount), 1, type(uint96).max);
         usdc.mint(alice, amount);
 
         vm.prank(alice);
@@ -85,7 +85,7 @@ contract ERC4626AdapterInitializationTest is ERC4626AdapterTestBase {
     /// @notice Fuzzes that deposit withdraw rounding does not cause loss.
     /// @dev Validates that deposit withdraw rounding does not cause loss.
     function testFuzz_DepositWithdraw_RoundingDoesNotCauseLoss(uint96 depositAmount) public {
-        uint256 amount = bound(uint256(depositAmount), vault.MIN_FIRST_DEPOSIT(), type(uint96).max);
+        uint256 amount = bound(uint256(depositAmount), 1, type(uint96).max);
         usdc.mint(alice, amount);
 
         uint256 balanceBefore = usdc.balanceOf(alice);
