@@ -1207,7 +1207,7 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
     }
 
     function testFuzz_convertToAssets_RecoveryMode(uint256 depositAmount) public {
-        vm.assume(depositAmount > 0 && depositAmount <= type(uint96).max - 1);
+        depositAmount = bound(depositAmount, 100, type(uint96).max - 1);
         usdc.mint(alice, depositAmount);
         vm.prank(alice);
         uint256 aliceShares = vault.deposit(depositAmount, alice);
@@ -1238,8 +1238,9 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
     }
 
     function testFuzz_convertToShares_RecoveryMode(uint256 depositAmount, uint256 withdrawAmount) public {
-        vm.assume(depositAmount > 1 && depositAmount <= type(uint96).max - 1);
-        vm.assume(withdrawAmount > 1 && withdrawAmount <= depositAmount);
+        depositAmount = bound(depositAmount, 100, type(uint96).max - 1);
+        withdrawAmount = bound(withdrawAmount, 100, depositAmount);
+
         usdc.mint(alice, depositAmount);
         vm.prank(alice);
         vault.deposit(depositAmount, alice);
