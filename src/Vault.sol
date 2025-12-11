@@ -514,7 +514,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
      * @param token Address of the ERC20 token to recover
      * @param receiver Address that will receive the recovered tokens
      */
-    function recoverERC20(address token, address receiver) external onlyRole(MANAGER_ROLE) {
+    function recoverERC20(address token, address receiver) public virtual onlyRole(MANAGER_ROLE) {
         if (token == address(0)) revert RecoveryTokenZeroAddress();
         if (receiver == address(0)) revert RecoveryReceiverZeroAddress();
         if (token == asset()) revert CannotRecoverVaultAsset(token);

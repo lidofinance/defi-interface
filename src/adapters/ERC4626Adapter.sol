@@ -83,6 +83,10 @@ contract ERC4626Adapter is EmergencyVault {
     /// @param targetVaultAsset Address of the target vault asset
     error TargetVaultAssetMismatch(address asset, address targetVaultAsset);
 
+    /// @notice Thrown when attempting to recover target vault share tokens
+    /// @param token Address of the share token that cannot be recovered
+    error CannotRecoverTargetVaultShares(address token);
+
     /* ========== CONSTRUCTOR ========== */
 
     /**
@@ -187,13 +191,22 @@ contract ERC4626Adapter is EmergencyVault {
     function depositUnallocatedAssets() external onlyRole(MANAGER_ROLE) {
         if (emergencyMode) revert DisabledDuringEmergencyMode();
 
-        uint256 unallocatedBalance = Math.min(
-            ASSET.balanceOf(address(this)),
-            TARGET_VAULT.maxDeposit(address(this))
-        );
+        uint256 unallocatedBalance = Math.min(ASSET.balanceOf(address(this)), TARGET_VAULT.maxDeposit(address(this)));
         if (unallocatedBalance == 0) revert TargetVaultDepositFailed();
 
         _depositToProtocol(unallocatedBalance);
+    }
+
+    /**
+     * @notice Recovers non-core ERC20 tokens accidentally held by the adapter
+     * @dev Blocks recovery of the target vault's share token to avoid stealing strategy positions.
+     *      Delegates to the base Vault implementation for all other tokens.
+     * @param token Address of the ERC20 token to recover
+     * @param receiver Address that will receive the recovered tokens
+     */
+    function recoverERC20(address token, address receiver) public override onlyRole(MANAGER_ROLE) {
+        if (token == address(TARGET_VAULT)) revert CannotRecoverTargetVaultShares(token);
+        return super.recoverERC20(token, receiver);
     }
 
     /* ========== INTERNAL PROTOCOL FUNCTIONS ========== */

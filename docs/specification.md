@@ -372,7 +372,7 @@ function recoverERC20(address token, address receiver) external onlyRole(MANAGER
   * `token` must not be the zero address.
   * `receiver` must not be the zero address.
   * `token` must not be the vault's main asset (reverts with `CannotRecoverVaultAsset`).
-  * Token balance in the vault must be greater than zero (reverts with `ZeroAmount`).
+  * Token balance in the vault must be greater than zero (reverts with `RecoveryTokenBalanceZero`).
 
 **Notes:**
 
@@ -698,6 +698,23 @@ function _emergencyWithdrawFromProtocol(address receiver) internal override retu
   * The approval revocation is **idempotent** (safe to call multiple times). If approval is already 0, the function does nothing.
   * Redeems all available shares (`TARGET_VAULT.maxRedeem(address(this))`) from the target vault.
   * Returns 0 if there are no shares to redeem.
+
+#### `recoverERC20`
+
+Recovers non-core ERC20 tokens held by the adapter while preventing target vault share theft.
+
+```solidity
+function recoverERC20(address token, address receiver) public override onlyRole(MANAGER_ROLE)
+```
+
+**Constraints:**
+
+  * Reverts with `CannotRecoverTargetVaultShares` if `token == address(TARGET_VAULT)`.
+  * Inherits all base `Vault.recoverERC20` constraints (cannot recover main asset or vault share token, requires non-zero token/receiver, non-zero balance).
+
+**Notes:**
+
+  * Designed strictly for dust/audit token recovery. Prevents misuse to drain the underlying protocol by forbidding target share extraction.
 
 #### `revokeProtocolApproval` / `refreshProtocolApproval`
 
