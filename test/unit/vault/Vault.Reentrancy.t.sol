@@ -36,12 +36,11 @@ contract ReentrantMockVault is MockVault {
         hook = hook_;
     }
 
-    function _depositToProtocol(uint256 assets) internal override returns (uint256) {
-        uint256 shares = super._depositToProtocol(assets);
+    function _depositToProtocol(uint256 assets) internal override {
+        super._depositToProtocol(assets);
         if (address(hook) != address(0)) {
             hook.trigger();
         }
-        return shares;
     }
 }
 

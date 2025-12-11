@@ -9,7 +9,6 @@ contract MockVault is Vault {
     using SafeERC20 for IERC20;
 
     uint256 public forcedShortfall;
-    bool public forceZeroProtocolShares;
     bool public forceZeroPreviewDeposit;
     bool public forceZeroPreviewMint;
     bool public forceZeroPreviewWithdraw;
@@ -26,10 +25,6 @@ contract MockVault is Vault {
 
     function setForcedShortfall(uint256 amount) external {
         forcedShortfall = amount;
-    }
-
-    function setForceZeroProtocolShares(bool value) external {
-        forceZeroProtocolShares = value;
     }
 
     function setForceZeroPreviewDeposit(bool value) external {
@@ -63,12 +58,9 @@ contract MockVault is Vault {
         return super.previewWithdraw(assets);
     }
 
-    function _depositToProtocol(uint256 assets) internal virtual override returns (uint256) {
-        if (forceZeroProtocolShares) return 0;
-        return assets;
-    }
+    function _depositToProtocol(uint256 assets) internal virtual override {}
 
-    function _withdrawFromProtocol(uint256 assets, address receiver) internal override returns (uint256) {
+    function _withdrawFromProtocol(uint256 assets, address receiver) internal override{
         uint256 shortfall = forcedShortfall;
         if (shortfall > assets) {
             shortfall = assets;
@@ -79,7 +71,6 @@ contract MockVault is Vault {
         }
 
         IERC20(asset()).safeTransfer(receiver, actualAssets);
-        return actualAssets;
     }
 
     function _getProtocolBalance() internal view override returns (uint256) {

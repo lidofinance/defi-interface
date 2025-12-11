@@ -215,10 +215,9 @@ contract ERC4626Adapter is EmergencyVault {
      * @notice Deposits assets into the target ERC4626 vault
      * @dev Calls target vault's deposit function and emits TargetVaultDeposit event
      * @param assets Amount of assets to deposit into target vault
-     * @return shares Amount of target vault shares received
      */
-    function _depositToProtocol(uint256 assets) internal override returns (uint256 shares) {
-        shares = TARGET_VAULT.deposit(assets, address(this));
+    function _depositToProtocol(uint256 assets) internal override {
+        uint256 shares = TARGET_VAULT.deposit(assets, address(this));
         if (shares == 0) revert TargetVaultDepositFailed();
         emit TargetVaultDeposit(assets, shares, TARGET_VAULT.balanceOf(address(this)));
     }
@@ -228,9 +227,8 @@ contract ERC4626Adapter is EmergencyVault {
      * @dev Validates liquidity before withdrawal and emits TargetVaultWithdrawal event
      * @param assets Amount of assets to withdraw from target vault
      * @param receiver Address that will receive the withdrawn assets
-     * @return Amount of assets withdrawn (always equals input assets if successful)
      */
-    function _withdrawFromProtocol(uint256 assets, address receiver) internal override returns (uint256) {
+    function _withdrawFromProtocol(uint256 assets, address receiver) internal override {
         uint256 availableAssets = TARGET_VAULT.maxWithdraw(address(this));
         if (assets > availableAssets) {
             revert TargetVaultInsufficientLiquidity(assets, availableAssets);
@@ -238,7 +236,6 @@ contract ERC4626Adapter is EmergencyVault {
 
         uint256 burnedShares = TARGET_VAULT.withdraw(assets, receiver, address(this));
         emit TargetVaultWithdrawal(assets, burnedShares, TARGET_VAULT.balanceOf(address(this)));
-        return assets;
     }
 
     /**

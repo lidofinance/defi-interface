@@ -363,18 +363,16 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
      * @notice Deposits assets into the underlying protocol
      * @dev Must be implemented by inheriting contracts to handle protocol-specific logic
      * @param assets Amount of assets to deposit
-     * @return protocolSharesReceived Amount of protocol shares received (if applicable)
      */
-    function _depositToProtocol(uint256 assets) internal virtual returns (uint256 protocolSharesReceived);
+    function _depositToProtocol(uint256 assets) internal virtual;
 
     /**
      * @notice Withdraws assets from the underlying protocol
      * @dev Must be implemented by inheriting contracts to handle protocol-specific logic
      * @param assets Amount of assets to withdraw
      * @param receiver Address that will receive the assets
-     * @return actualAssets Actual amount of assets withdrawn (may differ due to protocol constraints)
      */
-    function _withdrawFromProtocol(uint256 assets, address receiver) internal virtual returns (uint256 actualAssets);
+    function _withdrawFromProtocol(uint256 assets, address receiver) internal virtual;
 
     /**
      * @notice Returns current balance in underlying protocol
