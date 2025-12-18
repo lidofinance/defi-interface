@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Vault} from "src/Vault.sol";
 import "./ERC4626AdapterTestBase.sol";
 
@@ -37,7 +38,7 @@ contract ERC4626AdapterWithdrawTest is ERC4626AdapterTestBase {
         vault.deposit(depositAssets, alice);
 
         vm.expectEmit(true, true, true, false);
-        emit Withdrawn(alice, alice, alice, withdrawAssets, 0);
+        emit IERC4626.Withdraw(alice, alice, alice, withdrawAssets, 0);
 
         vm.prank(alice);
         vault.withdraw(withdrawAssets, alice, alice);

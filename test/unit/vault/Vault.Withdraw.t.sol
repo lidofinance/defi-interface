@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {VaultTestBase} from "./VaultTestBase.sol";
 import {Vault} from "src/Vault.sol";
 import {MockVault} from "test/mocks/MockVault.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 contract VaultWithdrawTest is VaultTestBase {
     /// @notice Exercises standard withdraw happy path.
@@ -74,14 +75,38 @@ contract VaultWithdrawTest is VaultTestBase {
         vm.prank(alice);
         vault.deposit(100_000e6, alice);
 
+        // Case 1: Owner withdraws for themselves to themselves
         uint256 withdrawAmount = 10_000e6;
         uint256 expectedShares = vault.previewWithdraw(withdrawAmount);
 
         vm.expectEmit(true, true, true, true);
-        emit Withdrawn(alice, alice, alice, withdrawAmount, expectedShares);
+        emit IERC4626.Withdraw(alice, alice, alice, withdrawAmount, expectedShares);
 
         vm.prank(alice);
         vault.withdraw(withdrawAmount, alice, alice);
+
+        // Case 2: Delegated withdraw using allowance - bob withdraws for alice
+        uint256 withdrawAmount2 = 20_000e6;
+        uint256 expectedShares2 = vault.previewWithdraw(withdrawAmount2);
+
+        vm.prank(alice);
+        vault.approve(bob, expectedShares2);
+
+        vm.expectEmit(true, true, true, true);
+        emit IERC4626.Withdraw(bob, bob, alice, withdrawAmount2, expectedShares2);
+
+        vm.prank(bob);
+        vault.withdraw(withdrawAmount2, bob, alice);
+
+        // Case 3: Owner withdraws to different receiver
+        uint256 withdrawAmount3 = 15_000e6;
+        uint256 expectedShares3 = vault.previewWithdraw(withdrawAmount3);
+
+        vm.expectEmit(true, true, true, true);
+        emit IERC4626.Withdraw(alice, bob, alice, withdrawAmount3, expectedShares3);
+
+        vm.prank(alice);
+        vault.withdraw(withdrawAmount3, bob, alice);
     }
 
     /// @notice Ensures withdraw reverts when insufficient shares.

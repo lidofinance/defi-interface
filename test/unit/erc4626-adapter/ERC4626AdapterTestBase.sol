@@ -24,11 +24,6 @@ contract ERC4626AdapterTestBase is TestConfig {
     uint16 public constant REWARD_FEE = 500;
     uint8 public constant OFFSET = 6;
 
-    event Deposited(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
-    event Withdrawn(
-        address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
-    );
-
     function setUp() public virtual {
         assetDecimals = _assetDecimals();
         usdc = new MockERC20("USD Coin", "USDC", assetDecimals);

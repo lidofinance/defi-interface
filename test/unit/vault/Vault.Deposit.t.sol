@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {VaultTestBase} from "./VaultTestBase.sol";
 import {Vault} from "src/Vault.sol";
 import {MockVault} from "test/mocks/MockVault.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 contract VaultDepositTest is VaultTestBase {
     /// @notice Exercises standard deposit happy path.
@@ -45,7 +46,7 @@ contract VaultDepositTest is VaultTestBase {
         uint256 expectedShares = vault.previewDeposit(depositAmount);
 
         vm.expectEmit(true, true, false, true);
-        emit Deposited(alice, alice, depositAmount, expectedShares);
+        emit IERC4626.Deposit(alice, alice, depositAmount, expectedShares);
 
         vm.prank(alice);
         vault.deposit(depositAmount, alice);

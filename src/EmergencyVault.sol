@@ -346,7 +346,7 @@ abstract contract EmergencyVault is Vault {
         _burn(owner, shares);
         IERC20(asset()).safeTransfer(receiver, assets);
 
-        emit Withdrawn(msg.sender, receiver, owner, assets, shares);
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
     /* ========== ERC4626 CONVERSION & PREVIEW OVERRIDES ========== */

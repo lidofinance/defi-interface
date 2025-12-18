@@ -69,23 +69,6 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
 
     /* ========== EVENTS ========== */
 
-    /// @notice Emitted when assets are deposited into the vault
-    /// @param caller Address that initiated the deposit
-    /// @param owner Address that received the vault shares
-    /// @param assets Amount of assets deposited
-    /// @param shares Amount of vault shares minted
-    event Deposited(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
-
-    /// @notice Emitted when assets are withdrawn from the vault
-    /// @param caller Address that initiated the withdrawal
-    /// @param receiver Address that received the assets
-    /// @param owner Address whose shares were burned
-    /// @param assets Amount of assets withdrawn
-    /// @param shares Amount of vault shares burned
-    event Withdrawn(
-        address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
-    );
-
     /// @notice Emitted when performance fees are harvested
     /// @param sharesMinted Amount of shares minted to treasury as fees
     event FeesHarvested(uint256 sharesMinted);
@@ -244,7 +227,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         _mint(shareReceiver, sharesMinted);
         lastTotalAssets += assetsToDeposit;
 
-        emit Deposited(msg.sender, shareReceiver, assetsToDeposit, sharesMinted);
+        emit Deposit(msg.sender, shareReceiver, assetsToDeposit, sharesMinted);
     }
 
     /**
@@ -280,7 +263,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         _mint(shareReceiver, sharesToMint);
         lastTotalAssets += assetsRequired;
 
-        emit Deposited(msg.sender, shareReceiver, assetsRequired, sharesToMint);
+        emit Deposit(msg.sender, shareReceiver, assetsRequired, sharesToMint);
     }
 
     /**
@@ -315,7 +298,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         _burn(shareOwner, sharesBurned);
         lastTotalAssets -= assetsToWithdraw;
 
-        emit Withdrawn(msg.sender, assetReceiver, shareOwner, assetsToWithdraw, sharesBurned);
+        emit Withdraw(msg.sender, assetReceiver, shareOwner, assetsToWithdraw, sharesBurned);
     }
 
     /**
@@ -351,7 +334,7 @@ abstract contract Vault is ERC4626, ERC20Permit, AccessControl, ReentrancyGuard,
         _burn(shareOwner, sharesToRedeem);
         lastTotalAssets -= assetsWithdrawn;
 
-        emit Withdrawn(msg.sender, assetReceiver, shareOwner, assetsWithdrawn, sharesToRedeem);
+        emit Withdraw(msg.sender, assetReceiver, shareOwner, assetsWithdrawn, sharesToRedeem);
     }
 
     /* ========== INTERNAL PROTOCOL FUNCTIONS ========== */
