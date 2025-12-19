@@ -257,6 +257,40 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
         assertEq(vault.emergencyTotalAssets(), snapshot);
     }
 
+    /// @notice Tests that emergencyWithdraw harvests fees before withdrawal
+    /// @dev Verifies that pending fees are harvested and treasury receives fee shares
+    function test_EmergencyWithdraw_HarvestsFees() public {
+        // Setup: Alice deposits
+        uint256 depositAmount = 100_000e6;
+        usdc.mint(alice, depositAmount);
+        vm.prank(alice);
+        vault.deposit(depositAmount, alice);
+
+        // Generate profit in target vault (10% profit)
+        uint256 profit = 10_000e6;
+        usdc.mint(address(targetVault), profit);
+
+        // Track treasury shares before emergency withdraw
+        uint256 treasurySharesBefore = vault.balanceOf(treasury);
+        uint256 totalSupplyBefore = vault.totalSupply();
+
+        // Emergency withdraw (should harvest fees first)
+        vm.prank(emergencyAdmin);
+        vault.emergencyWithdraw();
+
+        // Verify fees were harvested
+        uint256 treasurySharesAfter = vault.balanceOf(treasury);
+        uint256 feeSharesMinted = treasurySharesAfter - treasurySharesBefore;
+
+        assertGt(feeSharesMinted, 0, "Treasury should receive fee shares");
+        assertEq(vault.totalSupply() - totalSupplyBefore, feeSharesMinted, "Total supply should increase by fee shares");
+
+        // Verify fee value is approximately 5% of profit (500 basis points)
+        uint256 expectedFeeValue = (profit * vault.rewardFee()) / vault.MAX_BASIS_POINTS();
+        uint256 actualFeeValue = vault.convertToAssets(feeSharesMinted);
+        assertApproxEqAbs(actualFeeValue, expectedFeeValue, 2, "Fee value should be ~5% of profit");
+    }
+
     /* ========== ACTIVATE EMERGENCY RECOVERY TESTS ========== */
 
     /// @notice Fuzzes that activate recovery snapshots correctly.
@@ -1151,6 +1185,108 @@ contract EmergencyVaultTest is EmergencyVaultTestBase {
 
         // Verify: emergencySnapshot = vaultBalance + protocolBalance (no loss)
         assertApproxEqAbs(emergencySnapshot, vaultBalance + protocolBalance, 2);
+    }
+
+    /// @notice Tests that activate recovery succeeds when getProtocolBalance reverts (try/catch protection)
+    /// @dev Validates that broken target vault doesn't prevent recovery activation
+    function test_activateRecovery_SucceedsWhen_GetProtocolBalanceReverts() public {
+        // Setup: Alice deposits
+        uint256 amount = 100_000e6;
+        usdc.mint(alice, amount);
+        vm.prank(alice);
+        vault.deposit(amount, alice);
+
+        // Emergency withdraw
+        vm.prank(emergencyAdmin);
+        vault.emergencyWithdraw();
+
+        uint256 vaultBalance = usdc.balanceOf(address(vault));
+        uint256 totalSupply = vault.totalSupply();
+
+        // Force target vault to revert on balanceOf (simulates broken vault)
+        vm.mockCallRevert(
+            address(targetVault),
+            abi.encodeWithSignature("balanceOf(address)", address(vault)),
+            "Target vault is broken"
+        );
+
+        // Expect event with protocolBalance = 0 (due to try/catch)
+        vm.expectEmit(true, true, true, true);
+        emit RecoveryModeActivated(vaultBalance, totalSupply, 0, 0); // protocolBalance = 0
+
+        // Activate recovery should succeed despite revert
+        vm.prank(emergencyAdmin);
+        vault.activateRecovery();
+
+        // Verify recovery mode is active
+        assertTrue(vault.recoveryMode());
+        assertEq(vault.recoveryAssets(), vaultBalance);
+        assertEq(vault.recoverySupply(), totalSupply);
+    }
+
+    /// @notice Tests try/catch in activateRecovery with snapshot comparison
+    /// @dev Verifies protocolBalance is 0 on revert, but correct value without revert
+    function test_activateRecovery_TryCatch_WithSnapshot() public {
+        // Setup: Alice deposits
+        uint256 depositAmount = 100_000e6;
+        usdc.mint(alice, depositAmount);
+        vm.prank(alice);
+        vault.deposit(depositAmount, alice);
+
+        // Set liquidity cap to half of deposit (some funds stuck in protocol)
+        uint256 liquidityCap = depositAmount / 2;
+        targetVault.setLiquidityCap(liquidityCap);
+
+        // Emergency withdraw (partial)
+        vm.prank(emergencyAdmin);
+        vault.emergencyWithdraw();
+
+        uint256 vaultBalance = usdc.balanceOf(address(vault));
+        uint256 totalSupply = vault.totalSupply();
+        uint256 expectedProtocolBalance = vault.getProtocolBalance();
+        uint256 emergencySnapshot = vault.emergencyTotalAssets();
+
+        // Calculate implicit loss (what we lost during emergency)
+        uint256 implicitLoss = emergencySnapshot > vaultBalance ? emergencySnapshot - vaultBalance : 0;
+
+        // Sanity check: protocol should have remaining half
+        assertApproxEqAbs(expectedProtocolBalance, depositAmount / 2, 1, "Protocol should hold ~half");
+
+        uint256 snapshot = vm.snapshot();
+        {
+            // Mock target vault to revert
+            vm.mockCallRevert(
+                address(targetVault),
+                abi.encodeWithSignature("balanceOf(address)", address(vault)),
+                "Target vault is broken"
+            );
+
+            // Event should report protocolBalance = 0 (try/catch fallback)
+            vm.expectEmit(true, true, true, true);
+            emit RecoveryModeActivated(vaultBalance, totalSupply, 0, implicitLoss);
+
+            vm.prank(emergencyAdmin);
+            vault.activateRecovery();
+
+            // Verify recovery activated
+            assertTrue(vault.recoveryMode(), "Recovery mode should be active");
+        }
+
+        vm.revertTo(snapshot);
+        vm.clearMockedCalls();
+
+        // Event should report correct protocolBalance (no revert)
+        // implicitLoss remains the same in both cases
+        vm.expectEmit(true, true, true, true);
+        emit RecoveryModeActivated(vaultBalance, totalSupply, expectedProtocolBalance, implicitLoss);
+
+        vm.prank(emergencyAdmin);
+        vault.activateRecovery();
+
+        // Verify recovery activated with correct values
+        assertTrue(vault.recoveryMode(), "Recovery mode should be active");
+        assertEq(vault.recoveryAssets(), vaultBalance, "Recovery assets should match");
+        assertEq(vault.recoverySupply(), totalSupply, "Recovery supply should match");
     }
 
     /// @notice Tests that treasury (RewardDistributor) can redeem shares during recovery mode.

@@ -188,6 +188,8 @@ abstract contract EmergencyVault is Vault {
         recovered = _emergencyWithdrawFromProtocol(address(this));
         uint256 remaining = _getProtocolBalance();
 
+        _harvestFees();
+
         emit EmergencyWithdrawal(recovered, remaining);
     }
 
@@ -215,10 +217,14 @@ abstract contract EmergencyVault is Vault {
      *      - Recovery proceeds with whatever balance is available on the vault contract
      *
      *      Execution flow:
-     *      1. Harvests pending fees to ensure fair distribution
-     *      2. Snapshots actualBalance and totalSupply for immutable pro-rata calculation
-     *      3. Calculates implicitLoss = emergencyTotalAssets - actualBalance
-     *      4. Sets recoveryMode = true (permanent, cannot be reversed)
+     *      1. Snapshots actualBalance and totalSupply for immutable pro-rata calculation
+     *      2. Calculates implicitLoss = emergencyTotalAssets - actualBalance
+     *      3. Sets recoveryMode = true (permanent, cannot be reversed)
+     *
+     *      Target vault protection:
+     *      - Uses try/catch when querying getProtocolBalance() to handle broken/paused target vaults
+     *      - If target vault reverts, protocolBalance is assumed 0 (recovery still proceeds)
+     *      - Ensures recovery activation cannot be blocked by target vault failures
      *
      *      Recovery mode is permanent and CANNOT be deactivated (vault becomes "pumpkin").
      *      After activation, deposits/mints are permanently blocked.
@@ -236,15 +242,16 @@ abstract contract EmergencyVault is Vault {
         if (recoveryMode) revert RecoveryModeAlreadyActive();
         if (!emergencyMode) revert EmergencyModeNotActive();
 
-        _harvestFees();
-
         uint256 actualBalance = IERC20(asset()).balanceOf(address(this));
         if (actualBalance == 0) revert InvalidRecoveryAssets(actualBalance);
 
         uint256 supply = totalSupply();
         if (supply == 0) revert InvalidRecoverySupply(supply);
 
-        uint256 protocolBalance = _getProtocolBalance();
+        uint256 protocolBalance;
+        try this.getProtocolBalance() returns (uint256 balance) {
+            protocolBalance = balance;
+        } catch {}
         uint256 implicitLoss = emergencyTotalAssets > actualBalance ? emergencyTotalAssets - actualBalance : 0;
 
         recoveryAssets = actualBalance;
