@@ -404,4 +404,26 @@ contract ERC4626AdapterMaxDepositTest is ERC4626AdapterTestBase {
         assertApproxEqAbs(actualAssets, assetsFromPreviewMint, 2, "Actual should match preview");
         assertLe(vault.totalAssets(), 100_000e6, "Should not exceed target vault cap");
     }
+
+    /// @notice Tests that maxMint matches previewDeposit under various profit scenarios
+    function testFuzz_MaxMint_MatchesPreviewDeposit_WithProfit(
+        uint96 initialDeposit,
+        uint96 profitAmount
+    ) public {
+        uint256 deposit = bound(uint256(initialDeposit), 10_000e6, 500_000e6);
+        uint256 profit = bound(uint256(profitAmount), 1e6, deposit / 2);
+
+        targetVault.setLiquidityCap(1_000_000e6);
+
+        vm.prank(alice);
+        vault.deposit(deposit, alice);
+
+        usdc.mint(address(targetVault), profit);
+
+        uint256 maxDep = vault.maxDeposit(bob);
+        uint256 maxMintValue = vault.maxMint(bob);
+        uint256 expectedMaxMint = vault.previewDeposit(maxDep);
+
+        assertEq(maxMintValue, expectedMaxMint, "maxMint must match previewDeposit(maxDeposit)");
+    }
 }
